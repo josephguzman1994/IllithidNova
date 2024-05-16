@@ -1,0 +1,15 @@
+# All the current dependencies in Karlach.py
+numpy
+matplotlib
+astropy
+astroquery
+scipy
+stwcs
+
+#Version pinning: Recent version associated with successful execution of Karlach.py
+numpy version: 1.24.4
+matplotlib version: 3.8.2
+astropy version: 6.0.0
+astroquery version: 0.4.7.dev9008
+scipy version: 1.8.0
+stwcs version: 1.7.2
