@@ -58,23 +58,23 @@ This link provides access to manuals, module sources, and additional resources t
 
 Here are some example commands to get you started:
 bash
-Run make clean, and make
-python Karlach.py --make
-Execute DOLPHOT processing
-python Karlach.py --dolphot --interactive
-Create dolphot parameter file by itself, assuming preprocessing is done.
-python Karlach.py --param
-Generate plots and save them to a PDF
-python Karlach.py --phot --pdf output.pdf
+#### Run make clean, and make
+```python Karlach.py --make```
+#### Execute DOLPHOT processing
+```python Karlach.py --dolphot --interactive```
+#### Create dolphot parameter file by itself, assuming preprocessing is done.
+```python Karlach.py --param```
+#### Generate plots and save them to a PDF
+```python Karlach.py --phot --pdf output.pdf```
 
 ## Installation
 
-Clone the repository and install the required dependencies:
+#### Clone the repository and install the required dependencies:
 
 bash
-git clone https://github.com/josephguzman1994/IllithidNova.git
-cd IllithidNova
-pip install -r requirements.txt
+```git clone https://github.com/josephguzman1994/IllithidNova.git```
+```cd IllithidNova```
+```pip install -r requirements.txt```
 
 ## Contributing
 
