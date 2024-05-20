@@ -69,7 +69,7 @@ bash
 #### Save dolphot photometry data with quality and distance masks
 ```python Karlach.py --save_data ```
 
-# Gale.py
+# Gale.py - Automated CMD 3.7 Isochrone Download Tool
 
 **Gale.py** is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.7 service hosted at `stev.oapd.inaf.it`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems.
 
@@ -110,7 +110,9 @@ bash
 
 bash
 ```git clone https://github.com/josephguzman1994/IllithidNova.git```
+
 ```cd IllithidNova```
+
 ```pip install -r requirements.txt```
 
 ## Contributing
