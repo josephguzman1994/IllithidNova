@@ -4,7 +4,8 @@ import logging
 from bs4 import BeautifulSoup
 from io import BytesIO
 import re
-import configparser
+import numpy as np
+import argparse
 
 class PARSEC:
     def __init__(self, base_url="http://stev.oapd.inaf.it/cgi-bin/cmd"):
@@ -90,76 +91,81 @@ photometric_systems = {
 }
 
 async def main():
-    base_url = "http://stev.oapd.inaf.it/cgi-bin/cmd"
-    parsec = PARSEC(base_url)
+    parser = argparse.ArgumentParser(description="Process isochrone data and interact with CMD website.")
+    parser.add_argument('--download_iso', action='store_true', help="Download isochrone data.")
+    args = parser.parse_args()
     
-    '''
-    User input for specific parameters. Currently has a few assumptions:
+    if args.download_iso:
+        base_url = "http://stev.oapd.inaf.it/cgi-bin/cmd"
+        parsec = PARSEC(base_url)
     
-    1. That you want to use log ages, and [M/H] values. If you want to use linear ages or z, that is easily doable,
-    but would need to update the form_data and user input. 
-    The keys for activating linear ages are: isoc_agelow','isoc_ageupp', and 'isoc_dage'. Also, set 'isoc_isagelog' = 0.
-    Similarly, to activate z values, use 'isoc_zlow', 'isoc_zupp', and 'isoc_dz'. Also set 'isoc_ismetlog' = 0
-    
-    2. You do not want to gzip your file. This means you are restricted to the CMD's webpage of downloading 400 isochrones at one time.
-    If you would like to change this, change 'output_gzip' = 1. (FYI this change will likely conflict with 'UnpackIsoSet' in StellarAges)
-    
-    3. You want to use CMD 3.7, Parsec v1.2S, and COLIBRI S_37. If you would like to change this, alter CMD, track_parsec, and track_colibri. As I don't know what potential future version you may
-    want to use, you will need to track down the correct values yourself.
-
-    4. In general, if you find you want to alter the default values / understand them better, inspect the 'form_data' and html on the webpage
-    '''
-    
-    try:
-        print("Let's attempt to download the desired isochrones by defining some parameters")
+        '''
+        User input for specific parameters. Currently has a few assumptions:
         
-        print("Currently available photometric systems: ", list(photometric_systems.keys()))
-        photometric_input = input("Enter the photometric system (e.g., ACS_HRC): ")
-        photsys_file = photometric_systems.get(photometric_input.upper())
+        1. That you want to use log ages, and [M/H] values. If you want to use linear ages or z, that is easily doable,
+        but you would need to update the form_data and user input. 
+        The keys for activating linear ages are: isoc_agelow','isoc_ageupp', and 'isoc_dage'. Also, set 'isoc_isagelog' = 0.
+        Similarly, to activate z values, use 'isoc_zlow', 'isoc_zupp', and 'isoc_dz'. Also set 'isoc_ismetlog' = 0
         
-        if photsys_file is None:
-            photsys_file = 'YBC_tab_mag_odfnew/tab_mag_wfc3_202101_wide.dat'  # Set default file
-            print("Invalid photometric system. Defaulting to WFC3_UVIS file.")
+        2. You do not want to gzip your file. This means you are restricted to the CMD's webpage of downloading 400 isochrones at one time.
+        If you would like to change this, change 'output_gzip' = 1. (FYI this change will likely conflict with 'UnpackIsoSet' in StellarAges)
         
-        isoc_lagelow = float(input("Enter the lower log age limit (isoc_lagelow): "))
-        isoc_lageupp = float(input("Enter the upper log age limit (isoc_lageupp): "))
-        isoc_dlage = float(input("Enter the log age step-size (isoc_dlage): "))
-        isoc_metlow = float(input("Enter the lower metallicity [M/H] limit (isoc_metlow): "))
-        isoc_metupp = float(input("Enter the upper metallicity [M/H] limit (isoc_metupp): "))
-        isoc_dmet = float(input("Enter the metallicity [M/H] step-size (isoc_dmet): "))
-    
-    except ValueError:
-        print("Invalid input. Please enter a valid floating-point number.")
-        return
+        3. You want to use CMD 3.7, Parsec v1.2S, and COLIBRI S_37. If you would like to change this, alter CMD, track_parsec, and track_colibri. As I don't know what potential future version you may
+        want to use, you will need to track down the correct values yourself.
 
-    form_data = {
-        'cmd_version': '3.7',
-        'photsys_file': photsys_file,
-        'output_kind': '0',
-        'output_evstage': '1',
-        'output_gzip': '0',
-        'track_parsec': 'parsec_CAF09_v1.2S',
-        'track_colibri': 'parsec_CAF09_v1.2S_S_LMC_08_web',
-        'photsys_version': 'YBCnewVega',
-        'dust_sourceM': 'dpmod60alox40',
-        'dust_sourceC': 'AMCSIC15',
-        'extinction_av': '0.0',
-        'extinction_coeff': 'constant',
-        'extinction_curve': 'cardelli',
-        'kind_LPV': '3',
-        'imf_file': 'tab_imf/imf_kroupa_orig.dat',
-        'isoc_isagelog': '1',
-        'isoc_lagelow': isoc_lagelow,
-        'isoc_lageupp': isoc_lageupp,
-        'isoc_dlage': isoc_dlage,
-        'isoc_ismetlog': '1',
-        'isoc_metlow': isoc_metlow,
-        'isoc_metupp': isoc_metupp,
-        'isoc_dmet': isoc_dmet,
-        'submit_form': 'Submit'
-    }
+        4. In general, if you find you want to alter the default values / understand them better, inspect the 'form_data' and html on the webpage
+        '''
+        
+        try:
+            print("Let's attempt to download the desired isochrones by defining some parameters")
+            
+            print("Currently available photometric systems: ", list(photometric_systems.keys()))
+            photometric_input = input("Enter the photometric system (e.g., ACS_HRC): ")
+            photsys_file = photometric_systems.get(photometric_input.upper())
+            
+            if photsys_file is None:
+                photsys_file = 'YBC_tab_mag_odfnew/tab_mag_wfc3_202101_wide.dat'  # Set default file
+                print("Invalid photometric system. Defaulting to WFC3_UVIS file.")
+            
+            isoc_lagelow = float(input("Enter the lower log age limit (isoc_lagelow): "))
+            isoc_lageupp = float(input("Enter the upper log age limit (isoc_lageupp): "))
+            isoc_dlage = float(input("Enter the log age step-size (isoc_dlage): "))
+            isoc_metlow = float(input("Enter the lower metallicity [M/H] limit (isoc_metlow): "))
+            isoc_metupp = float(input("Enter the upper metallicity [M/H] limit (isoc_metupp): "))
+            isoc_dmet = float(input("Enter the metallicity [M/H] step-size (isoc_dmet): "))
+        
+        except ValueError:
+            print("Invalid input. Please enter a valid floating-point number.")
+            return
 
-    await parsec.download_isochrone("output_filename.dat", form_data)
+        form_data = {
+            'cmd_version': '3.7',
+            'photsys_file': photsys_file,
+            'output_kind': '0',
+            'output_evstage': '1',
+            'output_gzip': '0',
+            'track_parsec': 'parsec_CAF09_v1.2S',
+            'track_colibri': 'parsec_CAF09_v1.2S_S_LMC_08_web',
+            'photsys_version': 'YBCnewVega',
+            'dust_sourceM': 'dpmod60alox40',
+            'dust_sourceC': 'AMCSIC15',
+            'extinction_av': '0.0',
+            'extinction_coeff': 'constant',
+            'extinction_curve': 'cardelli',
+            'kind_LPV': '3',
+            'imf_file': 'tab_imf/imf_kroupa_orig.dat',
+            'isoc_isagelog': '1',
+            'isoc_lagelow': isoc_lagelow,
+            'isoc_lageupp': isoc_lageupp,
+            'isoc_dlage': isoc_dlage,
+            'isoc_ismetlog': '1',
+            'isoc_metlow': isoc_metlow,
+            'isoc_metupp': isoc_metupp,
+            'isoc_dmet': isoc_dmet,
+            'submit_form': 'Submit'
+        }
+
+        await parsec.download_isochrone("output_filename.dat", form_data)
 
 if __name__ == "__main__":
     asyncio.run(main())
