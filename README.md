@@ -66,14 +66,53 @@ bash
 ```python Karlach.py --param```
 #### Generate plots and save them to a PDF
 ```python Karlach.py --phot --pdf output.pdf```
+#### Save dolphot photometry data with quality and distance masks
+```python Karlach.py --save_data ```
 
-## Installation
+# Gale.py - Automated CMD 3.7 Isochrone Download Tool
+
+**Gale.py** is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.7 service hosted at `stev.oapd.inaf.it`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems.
+
+## Key Features
+
+- **Dynamic Parameter Input**: Users can input specific parameters such as log age limits, metallicity limits, and step sizes directly through the command line interface.
+- **Support for Multiple Photometric Systems**: The script includes a flexible input system for selecting different photometric systems, with easy configuration for adding new systems as needed.
+- **Error Handling**: Provides robust error handling to manage and report issues like connection timeouts or data retrieval errors.
+- **Customizable Photometric System Files**: Users can choose from predefined photometric systems or add new ones to the `photometric_systems` dictionary, which maps system names to corresponding data file paths.
+- **Direct Data Download and Save**: Automatically downloads the `.dat` file containing the isochrone data and saves it locally, handling any necessary URL corrections and format validations.
+
+## Usage
+
+1. **Set Up**: Ensure all dependencies are installed, including `httpx`, `asyncio`, `BeautifulSoup`, and others.
+2. **Run the Script**: Execute the script via the command line. The script will prompt for necessary parameters:
+   - Photometric system (e.g., `ACS_HRC`)
+   - Lower and upper log age limits
+   - Log age step-size
+   - Lower and upper metallicity [M/H] limits
+   - Metallicity step-size
+3. **Output**: The script outputs the downloaded data into a specified file and provides console output regarding the status of the download.
+
+## Configuration
+
+- Users can modify the `photometric_systems` dictionary, or the `form_data` to add or change to their desired settings and use cases.
+- Default values and error handling behaviors can be adjusted within the script.
+
+## Dependencies
+
+- Python 3.6+
+- httpx
+- asyncio
+- BeautifulSoup
+
+## Installation (For Karlach and Gale)
 
 #### Clone the repository and install the required dependencies:
 
 bash
 ```git clone https://github.com/josephguzman1994/IllithidNova.git```
+
 ```cd IllithidNova```
+
 ```pip install -r requirements.txt```
 
 ## Contributing
