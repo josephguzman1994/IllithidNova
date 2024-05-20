@@ -1,4 +1,5 @@
 # IllithidNova
+IllithidNova is a place with multiple python tools for astronomers and astrophysicists. 
 
 # Karlach.py - Dolphot Automation Tool
 
