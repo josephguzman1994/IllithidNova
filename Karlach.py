@@ -182,7 +182,7 @@ class TerminalCommandExecutor:
             print(f"Splitgroups command executed successfully! Output log: {output_splitgroups}")
         except Exception as e:
             self.log_error_and_suggest("Failed to execute splitgroups command.", e,
-                                       "Verify the presence and format of .fits files in the directory. Additionally, verify that splitgroups is valid for chosen photometric system")
+                                       "Verify the presence and format of .fits files in the directory. Additionally, verify that splitgroups is valid for chosen photometric system. Inspect mask log file")
 
     # Step 3: execute calcsky command for all chip1 and chip2 files
     def execute_calcsky_commands(self, working_directory, obj_name, system_name, calcsky_values=None):
@@ -218,7 +218,7 @@ class TerminalCommandExecutor:
             print(f"All calcsky commands executed successfully! Combined output log: {output_log}\n")
         except Exception as e:
             self.log_error_and_suggest("Failed to execute calcsky commands.", e,
-                                       "Verify the presence of .fits files, check calcsky values for chosen system, consider syntax of file pattern in def execute_calcsky_commands, and retry.")
+                                       "Verify the presence of .fits files, check calcsky values for chosen system, inspect mask and splitgroups log files. Consider syntax of file pattern in def execute_calcsky_commands for system, and retry.")
 
     # Step 4a.1: Now that all the pre-processing is done, we need to track down specific files for generating the dolphot parameter file
     def find_chip_files(self, working_directory, system_name):
@@ -368,7 +368,7 @@ class TerminalCommandExecutor:
             return True, not file_exists # Return True if new file, False if updated
         except Exception as e:
             self.log_error_and_suggest("Failed to create/update the parameter file.", e,
-                                       "Check the selected image files. Verify the existence of drc/drz files. Verify system_name and correspond [section], key-value pairs exists for system in config.ini.")
+                                       "Check the selected image files. Verify the existence of drc/drz files. Verify system_name and corresponding [section], key-value pairs exists for system in config.ini.")
 
     # Step 4c: Find the parameters associated with specific sections. Define system_name = (e.g.: ACS_HRC) under [DOLPHOT_CONFIG] in config.ini
     # Refer to various dolphot manuals for how to define everything
@@ -411,7 +411,7 @@ class TerminalCommandExecutor:
             return True
         except subprocess.CalledProcessError as e:
             self.log_error_and_suggest("Failed to execute dolphot.", e,
-                                       "Check the parameter file exists and for errors. Verify images in parameter file exist in directory. Check obj_name defined in config.ini. Compare parameter file to dolphot manuals")
+                                       "Check the parameter file exists and for errors. Verify images in parameter file exist in directory. Check obj_name defined in config.ini. Compare parameter file to dolphot manuals. Inspect log files")
             return False
 
     # Step 6: Now that dolphot has executed, .phot file and reference image should exist and be clear to define and manipulate
@@ -590,7 +590,7 @@ class PlotManager:
             self.sn_dec = float(input("Enter DEC (deg): "))
 
         # Columns defined in 2004dj_kochanek.phot.columns: Currently hardcoded, verify this is generally true
-        # Also held true for ACS_HRC data, and ACS_WFC data.
+        # Held true for ACS_HRC data, and ACS_WFC data.
         #3.  Object X position on reference image (or first image, if no reference) = 0
         #4.  Object Y position on reference image (or first image, if no reference) = 1
         #10. Crowding                                                               = 2
@@ -645,6 +645,7 @@ class PlotManager:
         y_cut = y[combined_mask]
         blue_cut = blue[combined_mask]
         blue_unc_cut = blue_unc[combined_mask]
+        
         # Convert apparent magnitudes to absolute magnitudes
         blue_abs_cut = blue_cut - 5 * np.log10(distance) + 5
         red_cut = red[combined_mask]
