@@ -72,29 +72,20 @@ bash
 
 # Gale.py - Automated CMD 3.7 Isochrone Download Tool
 
-**Gale.py** is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.7 service hosted at `stev.oapd.inaf.it`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems.
+**Gale.py** is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.7 service hosted at `stev.oapd.inaf.it`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems. It is currently optimized to use the PARSEC and COLIBRI models to fetch photometric system data, which it then unpacks into structured `.npy` files for further analysis.
 
 ## Key Features
-
-- **Dynamic Parameter Input**: Users can input specific parameters such as log age limits, metallicity limits, and step sizes directly through the command line interface.
-- **Support for Multiple Photometric Systems**: The script includes a flexible input system for selecting different photometric systems, with easy configuration for adding new systems as needed.
-- **Error Handling**: Provides robust error handling to manage and report issues like connection timeouts or data retrieval errors.
-- **Customizable Photometric System Files**: Users can choose from predefined photometric systems or add new ones to the `photometric_systems` dictionary, which maps system names to corresponding data file paths.
-- **Direct Data Download and Save**: Automatically downloads the `.dat` file containing the isochrone data and saves it locally, handling any necessary URL corrections and format validations.
-
-## Usage
-
-1. **Set Up**: Ensure all dependencies are installed, including `httpx`, `asyncio`, `BeautifulSoup`, and others.
-2. **Run the Script**: Execute the script via the command line. The script will prompt for necessary parameters:
-   - Photometric system (e.g., `ACS_HRC`)
-   - Lower and upper log age limits
-   - Log age step-size
-   - Lower and upper metallicity [M/H] limits
-   - Metallicity step-size
-3. **Output**: The script outputs the downloaded data into a specified file and provides console output regarding the status of the download.
+- **Download Isochrone Data**: Downloads data directly from the CMD 3.7 interface.
+  - **Dynamic Parameter Input**: Users can input specific parameters such as log age limits, metallicity [M/H] limits, and step sizes directly through the command line interface.
+  - **Error Handling**: Provides robust error handling to manage and report issues like connection timeouts or data retrieval errors.
+  - **Support for Multiple Photometric System Files**: Users can choose from predefined photometric systems, or add new ones to the `photometric_systems` dictionary, which maps system names to corresponding data file paths.
+  - **Direct Data Download and Save**: Automatically downloads the corresponding `.dat` (relabeld to `.set`) file containing the isochrone data, and saves it locally, handling any necessary URL corrections and format validations.
+- **Data Unpacking**: Converts downloaded `.set` files into `.npy` files, separating data into individual isochrones separated by age and metallicity.
+- **Flexible Directory Handling**: Users can specify the output directory for unpacked files or use the default working directory.
 
 ## Configuration
 
+- Users are prompted to enter specific parameters such as photometric system and age limits. These inputs dictate the scope of the data to be downloaded and processed.
 - Users can modify the `photometric_systems` dictionary, or the `form_data` to add or change to their desired settings and use cases.
 - Default values and error handling behaviors can be adjusted within the script.
 
@@ -104,6 +95,27 @@ bash
 - httpx
 - asyncio
 - BeautifulSoup
+- numpy
+
+## Notes
+- Ensure that your internet connection is stable when downloading data from CMD 3.7.
+- The script currently does not handle gzip-compressed files. If you need to download large datasets, consider modifying the script (under `form_data`) to handle gzip compression.
+
+## Usage
+To use `Gale.py`, you can utilize the following command-line arguments:
+
+- `--download_iso`: Trigger the download of isochrone data.
+- `--UnpackIsoSet`: Unpack the downloaded `.set` file into separate `.npy` files.
+- `--isodir`: Specify the directory where unpacked data should be stored. If not utilized, defaults to the current working directory.
+
+### Examples
+1. **Downloading and Unpacking Data**
+bash ```python3 Gale.py --download_iso --UnpackIsoSet```
+This command downloads the isochrone data based on user inputs and immediately unpacks it into the current directory. Utilizes environment variables to minimize user input
+
+2. **Unpacking Existing Data and Choosing Output Directory**
+bash ```python3 Gale.py --UnpackIsoSet --isodir /path/to/directory```
+This uses an existing `.set` file to unpack the data in a specified directory. If you ran ```--download_iso``` in the same terminal session, it will use the environment variables to automatically find the output files. Otherwise, you can manually define the necessary files with user input.
 
 ## Installation (For Karlach and Gale)
 
