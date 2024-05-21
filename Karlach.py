@@ -184,7 +184,7 @@ class TerminalCommandExecutor:
             self.log_error_and_suggest("Failed to execute splitgroups command.", e,
                                        "Verify the presence and format of .fits files in the directory. Additionally, verify that splitgroups is valid for chosen photometric system. Inspect mask log file")
 
-    # Step 3: execute calcsky command for all chip1 and chip2 files
+    # Step 3: execute calcsky command for all chip1 and chip2 files.
     def execute_calcsky_commands(self, working_directory, obj_name, system_name, calcsky_values=None):
         if working_directory is None:
             working_directory = os.getcwd()  # Get the current working directory if not provided
