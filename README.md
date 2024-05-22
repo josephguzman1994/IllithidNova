@@ -74,14 +74,18 @@ bash
 ```python Karlach.py --make```
 #### Execute DOLPHOT processing
 ```python Karlach.py --dolphot --interactive```
-#### Create dolphot parameter file by itself, assuming preprocessing is done.
+#### Create dolphot parameter file by itself, assuming preprocessing has been done separately.
 ```python Karlach.py --param```
 #### Generate plots and save them to a PDF
 ```python Karlach.py --phot --pdf output.pdf```
 #### Save dolphot photometry data with quality and distance masks
 ```python Karlach.py --save_data ```
 
-# Gale.py - Automated CMD 3.7 Isochrone Download Tool
+## Notes
+- Executing ```--make``` assumes you have dolphot2.0 installed, as well as the necessary PSF and PAM files for your images. Verify that your 'Makefile' is in your /dolphot2.0/ directory.
+- In case you are unaware, executing some of the dolphot commands assumes you are in the dolphot2.0 directory. Therefore, you may want to edit your .bashrc file (or equivalent) to execute these commands elsewhere.
+- At the moment, calcsky defaults to these values:  15 35 -128 2.25 2.00, which is only relevant for certain photometric systems. If you would like to use other values, activate ```--calcsky_values``` when executing the dolphot process.
+- Testing of Karlach.py has only been completed with some ACS photometric systems. As a result, bugs may persist in other systems which will likely be worked out sooner, rather than later.
 
 **Gale.py** is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.7 service hosted at `stev.oapd.inaf.it`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems. It is currently optimized to use the PARSEC and COLIBRI models to fetch photometric system data, which it then unpacks into structured `.npy` files for further analysis.
 
