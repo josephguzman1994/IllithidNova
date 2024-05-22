@@ -99,7 +99,7 @@ bash
   - **Error Handling**: Provides robust error handling to manage and report issues like connection timeouts or data retrieval errors.
   - **Support for Multiple Photometric System Files**: Users can choose from predefined photometric systems, or add new ones to the `photometric_systems` dictionary, which maps system names to corresponding data file paths.
   - **Direct Data Download and Save**: Automatically downloads the corresponding `.dat` (relabeled to `.set`) file containing the isochrone data, and saves it locally, handling any necessary URL corrections and format validations.
-- **Data Unpacking**: Converts downloaded `.set` files into `.npy` files, separating data into individual isochrones separated by age and metallicity.
+- **Data Unpacking**: Converts downloaded `.set` files into `.npy` files, separating data into individual isochrones separated by appropriate age, metallicity combinations.
 - **Flexible Directory Handling**: Users can specify the output directory for unpacked files or use the default working directory.
 
 ## Configuration
