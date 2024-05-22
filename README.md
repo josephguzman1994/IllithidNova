@@ -41,7 +41,7 @@ Below are the command-line arguments available in `Karlach.py`:
   - **Make Path**: Set the path to the DOLPHOT makefile directory.
   - **Phot File and Ref File**: Specify the names of the photometry and reference image files. These can be automatically filled in when executing `--phot` immediately after `--dolphot`.
  
-  - Below 'DOLPHOT_CONFIG', please define a section with keys and values for your chosen photometric system to generate the appropriate dolphot parameter file. Only the desired system needs to be fully defined.
+  - Below 'DOLPHOT_CONFIG', please define a section with keys and values for your chosen photometric system to generate the appropriate dolphot parameter file. Only the photometric system that matches the 'System Name' chosen above will be utilized.
 
 - **[ACS_HRC]**: Parameters specific to the ACS/HRC system, controlling detailed aspects of the photometry process such as centroiding, sky measurement, PSF fitting, and image alignment.
 
