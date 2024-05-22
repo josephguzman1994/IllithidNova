@@ -55,6 +55,17 @@ Given the complexity and specific nature of the parameters under each system, it
 
 This link provides access to manuals, module sources, and additional resources that can help in configuring `config.ini` for different systems and ensuring optimal settings for your photometry tasks.
 
+## Dependencies
+- Python 3.6+
+- numpy
+- matplotlib
+- astropy
+- astroquery
+- scipy
+- stwcs
+
+Please read below for more installation instructions.
+
 ## Examples
 
 Here are some example commands to get you started:
@@ -122,6 +133,7 @@ This uses an existing `.set` file to unpack the data in a specified directory. I
 #### Clone the repository and install the required dependencies:
 
 bash
+
 ```git clone https://github.com/josephguzman1994/IllithidNova.git```
 
 ```cd IllithidNova```
