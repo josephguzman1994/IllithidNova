@@ -323,7 +323,7 @@ class TerminalCommandExecutor:
 
         obj_name = config['DOLPHOT_CONFIG']['obj_name']
         system_name = config['DOLPHOT_CONFIG']['system_name']
-        param_file = f"{obj_name}_phot.param"
+        param_file = f"{obj_name}_{system_name}_phot.param"
 
         # Check if parameter file already exists
         file_exists = os.path.isfile(param_file)
