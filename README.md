@@ -134,7 +134,7 @@ This command downloads the isochrone data based on user inputs and immediately u
 
 2. **Unpacking Existing Data and Choosing Output Directory**
 bash ```python3 Gale.py --UnpackIsoSet --isodir /path/to/directory```
-This uses an existing `.set` file to unpack the data in a specified directory. If you ran ```--download_iso``` in the same terminal session, it will use the environment variables to automatically find the output files. Otherwise, you can manually define the necessary files with user input.
+This uses an existing `.set` file to unpack the data in a specified directory. If you ran ```--download_iso``` in the same terminal session, it will use the environment variables to automatically find the output files. Otherwise, you will be prompted manually define the necessary files with terminal input.
 
 ## Installation (For Karlach and Gale)
 
