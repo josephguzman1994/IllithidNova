@@ -21,7 +21,7 @@ Below are the command-line arguments available in `Karlach.py`:
 - `--param`: Creates a parameter file for DOLPHOT based on the current configuration.
 - `--customize-img`: Enables interactive customization of individual image parameters.
 - `--dolphot`: Executes a series of terminal commands for DOLPHOT processing.
-- `--interactive`: Enables interactive mode, requiring user confirmation before proceeding with each step.
+- `--interactive`: Enables interactive mode, prompting user confirmation before proceeding with each step.
 - `--dolphot_only`: Executes DOLPHOT processing assuming all preparatory steps have been completed.
 - `--calcsky_values`: Allows the user to provide custom values for the calcsky command.
 - `--headerkeys`: Generates header key information without performing the entire DOLPHOT process.
