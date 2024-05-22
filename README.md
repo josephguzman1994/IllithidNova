@@ -1,5 +1,5 @@
 # IllithidNova
-IllithidNova is a place with multiple python tools for astronomers and astrophysicists. 
+IllithidNova is a place with multiple python tools for astronomers and astrophysicists. Currently contains Karlach.py which automates thes DOLPHOT processing, and Gale.py which automates queries to CMD 3.7 to download and unpack isochrones.
 
 # Karlach.py - Dolphot Automation Tool
 
