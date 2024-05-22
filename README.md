@@ -17,7 +17,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
 
 Below are the command-line arguments available in `Karlach.py`:
 
-- `--make`: Runs "make clean" and "make" in the DOLPHOT makefile directory to prepare the system for DOLPHOT processing.
+- `--make`: Runs "make clean" and "make" in the DOLPHOT Makefile directory to prepare the system for DOLPHOT processing.
 - `--param`: Creates a parameter file for DOLPHOT based on the current configuration.
 - `--customize-img`: Enables interactive customization of individual image parameters.
 - `--dolphot`: Executes a series of terminal commands for DOLPHOT processing.
@@ -40,6 +40,8 @@ Below are the command-line arguments available in `Karlach.py`:
   - **Object Name**: Specify the name of the astronomical object being analyzed.
   - **Make Path**: Set the path to the DOLPHOT makefile directory.
   - **Phot File and Ref File**: Specify the names of the photometry and reference image files. These can be automatically filled in when executing `--phot` immediately after `--dolphot`.
+ 
+  - Below 'DOLPHOT_CONFIG', please define a section with keys and values for your chosen photometric system to generate the appropriate dolphot parameter file. Only the desired system needs to be fully defined.
 
 - **[ACS_HRC]**: Parameters specific to the ACS/HRC system, controlling detailed aspects of the photometry process such as centroiding, sky measurement, PSF fitting, and image alignment.
 
@@ -86,6 +88,8 @@ bash
 - In case you are unaware, executing some of the dolphot commands assumes you are in the dolphot2.0 directory. Therefore, you may want to edit your .bashrc file (or equivalent) to execute these commands elsewhere.
 - At the moment, calcsky defaults to these values:  15 35 -128 2.25 2.00, which is only relevant for certain photometric systems. If you would like to use other values, activate ```--calcsky_values``` when executing the dolphot process.
 - Testing of Karlach.py has only been completed with some ACS photometric systems. As a result, bugs may persist in other systems which will likely be worked out sooner, rather than later.
+
+# Gale.py - CMD 3.7 Isochrone Retrieval Tool
 
 **Gale.py** is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.7 service hosted at `stev.oapd.inaf.it`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems. It is currently optimized to use the PARSEC and COLIBRI models to fetch photometric system data, which it then unpacks into structured `.npy` files for further analysis.
 
