@@ -20,7 +20,7 @@ Below are the command-line arguments available in `Karlach.py`:
 - `--make`: Runs "make clean" and "make" in the DOLPHOT Makefile directory to prepare the system for DOLPHOT processing.
 - `--param`: Creates a parameter file for DOLPHOT based on the current configuration.
 - `--customize-img`: Enables interactive customization of individual image parameters.
-- `--dolphot`: Executes a series of terminal commands for DOLPHOT processing.
+- `--dolphot`: Executes all of terminal commands necessary for DOLPHOT processing (i.e. mask -> splitgroups -> calcsky -> dolphot)
 - `--interactive`: Enables interactive mode, prompting user confirmation before proceeding with each step.
 - `--dolphot_only`: Executes DOLPHOT processing assuming all preparatory steps have been completed.
 - `--calcsky_values`: Allows the user to provide custom values for the calcsky command.
