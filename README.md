@@ -64,7 +64,7 @@ This link provides access to manuals, module sources, and additional resources t
 - scipy
 - stwcs
 
-Please read below for more installation instructions.
+Please find installation instructions towards the bottom of this README for more detail.
 
 ## Examples
 
