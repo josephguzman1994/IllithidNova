@@ -349,7 +349,7 @@ class TerminalCommandExecutor:
                     file.write(f"img{index}_xform = {xform}\n")  # Use custom or default transformation
 
                 # Newline for readability
-                file.write("\n")
+                #file.write("\n")
 
                 # Directly write the config file section, preserving formatting
                 with open(config_file, 'r') as cfg:
@@ -419,11 +419,12 @@ class TerminalCommandExecutor:
     # Step 6: Now that dolphot has executed, .phot file and reference image should exist and be clear to define and manipulate
     # to plot data and make data files. Need to first update config.ini with phot_file and ref_file
     def update_config_with_files(self, config, working_directory): 
+        # This currently has a minor bug, which does not preserve the whitespacing when updating config.ini.
 
         # Ensure 'DOLPHOT_CONFIG' is a valid section
         if 'DOLPHOT_CONFIG' in config:
 
-            # Check if 'phot_file' is manually specified in the config
+            # Check if 'phot_file' is manually specified in the config, if so, respect that and leave it alone
             manual_phot_file = config['DOLPHOT_CONFIG'].get('phot_file')
             if manual_phot_file:
                 phot_file_path = os.path.join(working_directory, manual_phot_file)
@@ -591,8 +592,8 @@ class PlotManager:
             self.sn_ra = float(input("Enter RA (deg): "))
             self.sn_dec = float(input("Enter DEC (deg): "))
 
-        # Columns defined in 2004dj_kochanek.phot.columns: Currently hardcoded, verify this is generally true
-        # Held true for ACS_HRC data, and ACS_WFC data.
+        # Columns defined in 2004dj_kochanek.phot.columns (indexing from 1): Currently hardcoded, verify this is generally true.
+        # Held true for ACS_HRC data, ACS_WFC data, and WFC3 data.
         #3.  Object X position on reference image (or first image, if no reference) = 0
         #4.  Object Y position on reference image (or first image, if no reference) = 1
         #10. Crowding                                                               = 2
@@ -613,9 +614,9 @@ class PlotManager:
 
         # Prepare dynamic labels
         cmd_label = (columns_data[15].split(', ')[1] + '-' + columns_data[28].split(', ')[1]).strip()
-        red_label, blue_label = columns_data[15].split(', ')[1].strip(), columns_data[28].split(', ')[1].strip()
-        red_abs_cut_label, blue_abs_cut_label = (columns_data[15].split(', ')[1].strip()+'[Abs]'), (columns_data[28].split(', ')[1].strip()+'[Abs]')
-        red_unc_label, blue_unc_label = (columns_data[17].split(', ')[1] + ' Uncertainty').strip(), (columns_data[30].split(', ')[1] + ' Uncertainty').strip()
+        blue_label, red_label = columns_data[15].split(', ')[1].strip(), columns_data[28].split(', ')[1].strip()
+        blue_abs_cut_label, red_abs_cut_label = (columns_data[15].split(', ')[1].strip()+'[Abs]'), (columns_data[28].split(', ')[1].strip()+'[Abs]')
+        blue_unc_label, red_unc_label = (columns_data[17].split(', ')[1] + ' Uncertainty').strip(), (columns_data[30].split(', ')[1] + ' Uncertainty').strip()
         
         return (data, x, y, crowd, blue, blue_unc, blue_sn, blue_sharp, red, red_unc, red_sn, red_sharp,
                 cmd_label, red_label, blue_label, red_abs_cut_label, blue_abs_cut_label, red_unc_label, blue_unc_label, wcs, self.sn_ra, self.sn_dec)
@@ -659,22 +660,26 @@ class PlotManager:
     
     def save_processed_data(self, processed_data, obj_name, blue_label, red_label):
         # Unpack the processed data
-        x_cut, y_cut, blue_cut, red_cut, blue_unc_cut, red_unc_cut, color_filtered, cmd_label, red_label, blue_label, red_abs_cut_label, blue_abs_cut_label, red_unc_label, blue_unc_label, ra_cut, dec_cut = processed_data
+        x_cut, y_cut, blue_cut, red_cut, blue_unc_cut, red_unc_cut, color_filtered, cmd_label, red_label, blue_label, red_abs_cut_label, blue_abs_cut_label, red_unc_label, blue_unc_label, ra_cut, dec_cut, blue_abs_cut, red_abs_cut = processed_data
 
         print('Generating processed data file...')
         # Combine the arrays into a single 2D array
-        data = np.column_stack((blue_cut, red_cut, blue_unc_cut, red_unc_cut))
+        data = np.column_stack((blue_cut, blue_unc_cut, red_cut , red_unc_cut))
 
-        # Dynamically generate the file name based on the object name and filter labels
-        file_name = f'{obj_name}_{blue_label}_{red_label}_cutdata.txt'
+        # Dynamically generate the file names based on the object name and filter labels
+        file_name_npy = f'{obj_name}_{blue_label}_{red_label}_cutdata.err.npy'
+        file_name_txt = f'{obj_name}_{blue_label}_{red_label}_cutdata.err.txt'
 
         # Define the header dynamically
-        header = f'Blue_Magnitude({blue_label}) Red_Magnitude({red_label}) Blue_Magnitude_Uncertainty({blue_label}) Red_Magnitude_Uncertainty({red_label})'
+        header = f'Blue_Magnitude({blue_label}) Blue_Magnitude_Uncertainty({blue_label}) Red_Magnitude({red_label}) Red_Magnitude_Uncertainty({red_label})'
 
-        # Saving the Data to ASCII file
-        np.savetxt(file_name, data, fmt='%0.4f', header=header, comments='')
+        # Saving the Data to ASCII file for human readability
+        np.savetxt(file_name_txt, data, fmt='%0.4f', header=header, comments='')
 
-        print(f"Magnitudes and Uncertainties saved to {file_name}")
+        # Save the data to a NumPy binary file for programmatic access
+        np.save(file_name_npy, data)
+
+        print(f"Magnitudes and Uncertainties saved to {file_name_txt} and {file_name_npy}")
 
     #Define each plot individually, allows greater control, ease of debugging, modularity. Con is tracking down all the proper
     #Things to pass to each plot.
@@ -836,7 +841,8 @@ class PlotManager:
         if len(color_filtered) != len(red_cut):
             raise ValueError(f"Mismatch in array lengths: color_filtered ({len(color_filtered)}) vs red_cut ({len(red_cut)})")
         
-        # Format typically goes: x,y, xlabel, ylabel, title
+        # Format for plotting typically goes: x, y, xlabel, ylabel, title
+        
         cmd_fig = self.plot_cmd(color_filtered, red_cut, cmd_label, red_label, f"{self.phot_file}: Cut CMD")
         pdf_pages.savefig(cmd_fig)
         plt.close(cmd_fig)  # Close the figure to free memory
@@ -1017,7 +1023,7 @@ def main():
 
         # Step 2: Run the splitgroups command
         if continue_prompt("Proceed to run splitgroups? (y/n): "):
-            # List of system names that should skip splitgroups
+            # List of system names that should skip splitgroups inferred from dolphot manuals
             skip_splitgroups_systems = ['ACS_HRC', 'WFC3_IR', 'NIRCAM', 'NIRISS', 'MIRI', 'ROMAN']
             
             # Retrieve the system name from the configuration
@@ -1219,8 +1225,8 @@ def main():
         # Execute data saving if --save_data is specified
         if args.save_data:
             processed_data = plotter.process_data(prepared_data, plotter.distance)
-            red_label = prepared_data[14]
-            blue_label = prepared_data[15]
+            red_label = prepared_data[13]
+            blue_label = prepared_data[14]
             plotter.save_processed_data(processed_data, plotter.obj_name, blue_label, red_label)
 
 if __name__ == "__main__":
