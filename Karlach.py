@@ -138,7 +138,7 @@ class TerminalCommandExecutor:
             print("make clean not executed.")
 
     # Executing the whole dolphot block is long, and there are many potential breaking points.
-    # Defining function to log and print error details, and suggest recovery actions
+    # Defining function to log and print error details, and suggest recovery actions.
     # Saves terminal output and suggestions to "dolphot_error.log"
     
     def log_error_and_suggest(self, message, exception=None, suggestion=""):
@@ -337,7 +337,6 @@ class TerminalCommandExecutor:
 
             with open(param_file, 'w') as file:
                 file.write(f"Nimg = {len(selected_files) - 1}\n")
-                #file.write(f"# dolphot parameter file for {obj_name}, system = {system_name}\n\n")
 
                 # Write additional lines for each image
                 for index, image_file in enumerate(selected_files):
@@ -347,9 +346,6 @@ class TerminalCommandExecutor:
                     file.write(f"img{index}_file = {base_name}\n")
                     file.write(f"img{index}_shift = {shift}\n")  # Use custom or default shift
                     file.write(f"img{index}_xform = {xform}\n")  # Use custom or default transformation
-
-                # Newline for readability
-                #file.write("\n")
 
                 # Directly write the config file section, preserving formatting
                 with open(config_file, 'r') as cfg:
@@ -363,7 +359,6 @@ class TerminalCommandExecutor:
                         if write_section:
                             file.write(line)
 
-            #print(f"Parameter file '{param_file}' created successfully!")
             print(f"Path to new parameter file: {os.path.abspath(param_file)}")
             return True, not file_exists # Return True if new file, False if updated
         except Exception as e:
@@ -393,12 +388,6 @@ class TerminalCommandExecutor:
         # Fetch system name from the configuration
         system_name = config['DOLPHOT_CONFIG'].get('system_name', 'default_system')
 
-        # Prompt the user to confirm execution of dolphot
-        user_input = input("Would you like to execute dolphot? This will take awhile and should not be interrupted. (y/n): ")
-        if user_input.lower() not in ('y', 'yes'):
-            print("Dolphot execution cancelled.")
-            return False
-
         # Construct the dolphot terminal command 
         output_phot_file = f"{obj_name}_{system_name}.phot"
         log_file = f"dolphot_{obj_name}_{system_name}.log"
@@ -416,10 +405,10 @@ class TerminalCommandExecutor:
                                        "Check the parameter file exists and for errors. Verify images in parameter file exist in directory. Check obj_name defined in config.ini. Compare parameter file to dolphot manuals. Inspect log files")
             return False
 
-    # Step 6: Now that dolphot has executed, .phot file and reference image should exist and be clear to define and manipulate
+    # Step 6: Now that dolphot has executed, .phot file and reference image should exist, and be clear to define and manipulate
     # to plot data and make data files. Need to first update config.ini with phot_file and ref_file
     def update_config_with_files(self, config, working_directory): 
-        # This currently has a minor bug, which does not preserve the whitespacing when updating config.ini.
+        # This definition currently has a minor bug, which does not preserve the whitespacing when updating config.ini.
 
         # Ensure 'DOLPHOT_CONFIG' is a valid section
         if 'DOLPHOT_CONFIG' in config:
@@ -1100,7 +1089,7 @@ def main():
                 print("Parameter file creation/update skipped or failed.")
 
         # Step 6: Execute dolphot, always ask before executing dolphot, regardless of interactive mode
-        if continue_prompt("Proceed to execute dolphot? This can take a while and should not be interrupted. (y/n): ", always_ask=True):
+        if continue_prompt("Would you like to execute dolphot? This can take a while and should not be interrupted. (y/n): ", always_ask=True):
             if file_created:  # Ensure parameter file was created/updated successfully
                 param_file = f"{obj_name}_{system_name}_phot.param" #If you ran into error, and attempted to make parameter file manually, make sure file name matches this syntax
                 executor.execute_dolphot(obj_name, param_file, working_directory, config)
