@@ -39,6 +39,7 @@ Below are the command-line arguments available in `Karlach.py`:
   - **System Name**: Define the photometric system used (e.g., ACS_WFC, WFC3_UVIS).
   - **Object Name**: Specify the name of the astronomical object being analyzed.
   - **Make Path**: Set the path to the DOLPHOT makefile directory.
+  - **distance**: in units of parsecs to the object of interest. Necessary for processing data, making distance mask, absolute magnitude plots, etc.
   - **Phot File and Ref File**: Specify the names of the photometry and reference image files. These can be automatically filled in when executing `--phot` immediately after `--dolphot`.
  
   - Below 'DOLPHOT_CONFIG', please define a section with keys and values for your chosen photometric system to generate the appropriate dolphot parameter file. Only the photometric system that matches the 'System Name' chosen above will be utilized.
