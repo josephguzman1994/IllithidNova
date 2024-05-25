@@ -6,7 +6,14 @@ from io import BytesIO
 import re
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 import argparse
+
+# Globally define get_datasource, so all classes can use it
+# In Stellar Ages you need to define the 'Instrument' and 'Datasource'. This is redundant as the instrument defines the data source, so this definition maps the instruments to the appropriate data source
+def get_datasource(instrument):
+    hst_instruments = ['ACS_HRC', 'ACS_WFC', 'WFC3_UVIS', 'WFPC2']
+    return 'HST' if instrument in hst_instruments else 'To Be Coded'
 
 # This class handles interfacing with the webpage and submitting the appropriate request for isochrones
 class PARSEC:
@@ -145,6 +152,17 @@ class IsochroneAnalyzer:
         self.instrument = instrument
         self.datasource = datasource
 
+    # Inform the user of the current instruments supported by the get_iso_index method
+    def get_supported_instruments(self):
+        """Return a list of instruments supported by the get_iso_index method."""
+        index_map = {
+            'WFC3_UVIS': {'F438W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
+            'ACS_WFC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
+            'ACS_HRC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8}
+        }
+        return list(index_map.keys())
+
+    # Find the relevant indices needed for plotting isochrones and inspecting isochrone data
     def get_iso_index(self, mag):
         """Return the index of the magnitude based on the instrument and magnitude name."""
         index_map = {
@@ -160,6 +178,7 @@ class IsochroneAnalyzer:
         }
         return index_map.get(self.instrument, {}).get(mag, None)
     
+    # List all unique filters available across all instruments
     def list_available_filters(self):
         """List all unique filters available across all instruments."""
         index_map = {
@@ -176,7 +195,8 @@ class IsochroneAnalyzer:
         unique_filters = set()
         for filters in index_map.values():
             unique_filters.update(filters.keys())
-        print("Available filters:", ', '.join(sorted(unique_filters)))
+        print("Currently available filters:", ', '.join(sorted(unique_filters)))
+        return unique_filters
 
     async def check_max_iso_age(self):
         # Ensure isodir is correctly set, default to current working directory if not
@@ -215,7 +235,7 @@ class IsochroneAnalyzer:
             for age in ages:
                 age_excluded = False
                 for z in zs:
-                    # Have found that age and metallicity may either be 1 or 2 decimal places, leading to confusion finding files. Allow code to locate any combination of precision
+                    # Have found that age and metallicity may either be 1 or 2 decimal places, leading to confusion in finding files. Allow code to locate any combination of precision
                     combinations = [
                         (f"{float(age):.1f}", f"{float(z):.1f}"),
                         (f"{float(age):.2f}", f"{float(z):.1f}"),
@@ -249,10 +269,105 @@ class IsochroneAnalyzer:
             file.write(f'bluemin_global = {bluemin_global} table_bluemax = {table_bluemax}\n')
             # Generate a list of recommended ages to use based upon the ages that have not been excluded
             recommended_ages = [age for age in ages if age not in excluded_ages]
-            recommendation = f"Given that table_bluemax = {table_bluemax} and distance modulus = {mu}, we recommend you use these ages for {blue_mag}: {', '.join(recommended_ages)}"
+            recommendation = f"Given that table_bluemax = {table_bluemax} and distance modulus = {mu}, we recommend you only use these ages for {blue_mag}: {', '.join(recommended_ages)}"
             print(recommendation)
             file.write(recommendation + '\n')
         print(f'bluemin_global = {bluemin_global} table_bluemax = {table_bluemax}\n')
+
+    def plot_age_iso(self, ages, z, blue_mag, red_mag, isodir):
+        plt.figure()
+        # Use a colormap to generate colors dynamically
+        cmap = plt.get_cmap('viridis')  # 'viridis' is a good choice for distinct colors, but you can use 'plasma', 'inferno', etc.
+        num_ages = len(ages)
+        
+        for index, age in enumerate(ages):
+            formatted_age = f"{float(age):.2f}"
+            formatted_z = f"{float(z):.2f}"
+            
+            isofile = f"{isodir}/IsoParsec1.2_{self.datasource}_{self.instrument}_{formatted_age}_{formatted_z}_0.0.npy"
+            
+            if os.path.exists(isofile):
+                isodata = np.load(isofile)
+                blue_index = self.get_iso_index(blue_mag)
+                red_index = self.get_iso_index(red_mag)
+                color = isodata[:, blue_index] - isodata[:, red_index]
+                magnitude = isodata[:, red_index]
+                
+                # Generate a color from the colormap based on the index
+                plot_color = cmap(index / num_ages)
+                plt.plot(color, magnitude, color=plot_color)
+                plt.text(color[-1], magnitude[-1], f'{age}', color=plot_color, fontsize=6)
+            else:
+                print(f"File not found: {isofile}")
+
+        plt.xlabel(f'{blue_mag} - {red_mag}')
+        plt.ylabel(f'{red_mag}')
+        plt.gca().invert_yaxis()
+        plt.title(f'Age CMDs at [M/H] = {formatted_z}: {self.instrument}')
+        plt.savefig(f'Iso_{self.instrument}__Ages_{ages[0]}_{ages[-1]}.png')
+        plt.show()
+
+    def plot_isochrones_by_metallicity(self, age, zs, blue_mag, red_mag, isodir):
+        plt.figure()
+        cmap = plt.get_cmap('plasma')
+        num_zs = len(zs)
+        for index, z in enumerate(zs):
+            formatted_age = f"{float(age):.2f}"
+            formatted_z = f"{float(z):.2f}"
+            isofile = f"{isodir}/IsoParsec1.2_{self.datasource}_{self.instrument}_{formatted_age}_{formatted_z}_0.0.npy"
+            if os.path.exists(isofile):
+                isodata = np.load(isofile)
+                blue_index = self.get_iso_index(blue_mag)
+                red_index = self.get_iso_index(red_mag)
+                color = isodata[:, blue_index] - isodata[:, red_index]
+                magnitude = isodata[:, red_index]
+                plot_color = cmap(index / num_zs)
+                plt.plot(color, magnitude, color=plot_color)
+
+                #Ran into an issue where the generated text ran outside the bounds of the plot. This is a fix.
+                # Calculate thresholds as a percentage of the axis ranges
+                x_range = plt.xlim()
+                y_range = plt.ylim()
+
+                x_threshold = 0.02 * (x_range[1] - x_range[0])
+                y_threshold = 0.02 * (y_range[1] - y_range[0])
+
+                # Determine offsets dynamically
+                x_offset = -0.02 if color[-1] > (x_range[1] - x_threshold) else (0.02 if color[-1] < (x_range[0] + x_threshold) else 0)
+                y_offset = -0.02 if magnitude[-1] > (y_range[1] - y_threshold) else (0.02 if magnitude[-1] < (y_range[0] + y_threshold) else 0)
+
+                plt.text(color[-1] + x_offset, magnitude[-1] + y_offset, f'{z}', color=plot_color, fontsize=6, clip_on=True)
+            else:
+                print(f"File not found: {isofile}")
+        plt.xlabel(f'{blue_mag} - {red_mag}')
+        plt.ylabel(f'{red_mag}')
+        plt.gca().invert_yaxis()
+        plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+        plt.title(f'[M/H] CMDs at log Age = {age}: {self.instrument}')
+        plt.savefig(f'Iso_{self.instrument}_ZS_{zs[0]}_{zs[-1]}.png')
+        plt.show()
+
+    def plot_single_isochrone(self, age, z, blue_mag, red_mag, isodir):
+        plt.figure()
+        formatted_age = f"{float(age):.2f}"
+        formatted_z = f"{float(z):.2f}"
+        isofile = f"{isodir}/IsoParsec1.2_{self.datasource}_{self.instrument}_{formatted_age}_{formatted_z}_0.0.npy"
+        if os.path.exists(isofile):
+            isodata = np.load(isofile)
+            blue_index = self.get_iso_index(blue_mag)
+            red_index = self.get_iso_index(red_mag)
+            color = isodata[:, blue_index] - isodata[:, red_index]
+            magnitude = isodata[:, red_index]
+            plt.plot(color, magnitude, label=f'Age = {age}, Z = {z}')
+            plt.legend(fontsize=9)
+        else:
+            print(f"File not found: {isofile}")
+        plt.xlabel(f'{blue_mag} - {red_mag}')
+        plt.ylabel(f'{red_mag}')
+        plt.gca().invert_yaxis()
+        plt.title(f'CMD: {self.instrument}')
+        plt.savefig(f'SingleIso_{self.instrument}_Age_{age}_Z_{z}.png')
+        plt.show()
 
 # Define the photometric_systems dictionary globally
 # Currently setup to use HST cameras.
@@ -271,6 +386,9 @@ async def main():
     parser.add_argument('--UnpackIsoSet', action='store_true', help="Unpack an isochrone set.")
     parser.add_argument('--download_iso', action='store_true', help="Download isochrone data.")
     parser.add_argument('--MaxIsoAge', action='store_true', help="Check the maximum isochrone age against table limits.")
+    parser.add_argument('--plot_age_iso', action='store_true', help="Plot isochrones for varying ages and a fixed metallicity.")
+    parser.add_argument('--plot_z_iso', action='store_true', help="Plot isochrones for varying metallicities and a fixed age.")
+    parser.add_argument('--plot_single_iso', action='store_true', help="Plot a single isochrone for a given age and metallicity.")
     parser.add_argument('--isodir', type=str, help="Choose directory to store unpacked data, defaults to current working directory.")
     args = parser.parse_args()
 
@@ -317,11 +435,11 @@ async def main():
             isoc_metupp = float(input("Enter the upper metallicity [M/H] limit (isoc_metupp): "))
             isoc_dmet = float(input("Enter the metallicity [M/H] step-size (isoc_dmet): "))
 
-            # Clear environment variables at the start of the script
+            # Clear environment variables at the start of the script, in case running multiple times in a row
             os.environ.pop('AGES', None)
             os.environ.pop('ZS', None)
 
-            # Compute age and metallicity arrays
+            # Compute age and metallicity arrays to store in environment variables
             ages = np.arange(isoc_lagelow, isoc_lageupp + isoc_dlage / 10, isoc_dlage)
             zs = np.arange(isoc_metlow, isoc_metupp + isoc_dmet / 10, isoc_dmet)
 
@@ -372,6 +490,7 @@ async def main():
             print("Download complete.")
 
             # After setting the environment variables in the download_iso section
+            # Print the environment variables to the terminal for user to verify correctness
             print("Environment Variables Set:")
             print("ISOSETFILE:", os.getenv('ISOSETFILE'))
             print("INSTRUMENT:", os.getenv('INSTRUMENT'))
@@ -400,8 +519,9 @@ async def main():
         isosetfile = os.getenv('ISOSETFILE', input("Enter the isochrone set file name: "))
         unpacker.read_iso_set(isosetfile)
 
+    # This argument will check the max isochrone age you should consider based on several parameters
     if args.MaxIsoAge:
-        # Before using the environment variables in the MaxIsoAge section
+        # Before using the environment variables in the MaxIsoAge section, print them to the terminal for user verification
         print("Environment Variables Retrieved:")
         print("INSTRUMENT:", os.getenv('INSTRUMENT'))
         print("DATASOURCE:", os.getenv('DATASOURCE'))
@@ -409,15 +529,17 @@ async def main():
         print("ZS:", os.getenv('ZS'))
         print("\n")
 
-        # Check if the environment variables are set and only prompt for input if they are not.
+        # Check if the environment variables are set, and only prompt for input if they are not.
         instrument = os.getenv('INSTRUMENT')
         if not instrument:
+            analyzer = IsochroneAnalyzer(isodir, None, None)  # Temporary instance to access methods
+            print("Currently available instruments for MaxIsoAge:", ', '.join(analyzer.get_supported_instruments()))
             instrument = input("Enter the instrument (e.g., ACS_HRC, ACS_WFC): ")
 
-        datasource = os.getenv('DATASOURCE')
-        if not datasource:
-            datasource = input("Enter the data source (e.g., HST, Bessell): ")
+        # Datasource is defined by 'INSTRUMENT' whether that is fetched by environment variables or input manually
+        datasource = get_datasource(instrument)
 
+        # Environment Variable AGES and ZS are set when the user initializes --download_iso simultaneously.
         ages = os.getenv('AGES')
         if not ages:
             ages = input("Enter comma-separated ages of interest: ")
@@ -431,11 +553,87 @@ async def main():
         analyzer = IsochroneAnalyzer(isodir, instrument, datasource)
         await analyzer.check_max_iso_age()
 
+    # Plot isochrones of varying log ages while fixing metallicity. Currently assumes Av is 0.0
+    if args.plot_age_iso:
+        
+        instrument = os.getenv('INSTRUMENT')
+        if not instrument:
+            analyzer = IsochroneAnalyzer(isodir, None, None)  # Temporary instance to access methods
+            print("Currently available instruments for plotting:", ', '.join(analyzer.get_supported_instruments()))
+            instrument = input("Enter the instrument (e.g., ACS_HRC, ACS_WFC): ")
+
+        # Datasource is defined by 'INSTRUMENT' whether that is fetched by environment variables, or input manually
+        datasource = get_datasource(instrument)
+        
+        analyzer = IsochroneAnalyzer(isodir, instrument, datasource)  # Adjust parameters as needed
+        ages = os.getenv('AGES')
+        if not ages:
+            ages = input("Enter comma-separated ages of interest: ")
+        ages = ages.split(',')
+
+        z = input("Enter a fixed metallicity (default 0.00): ")
+        z = z if z.strip() else "0.00"
+
+        available_filters = analyzer.list_available_filters()
+        blue_mag = input("Enter the blue filter (e.g., F435W): ")
+        red_mag = input("Enter the red filter (e.g., F814W): ")
+
+        analyzer.plot_age_iso(ages, z, blue_mag, red_mag, isodir)
+
+    # Plot isochrones of varying metallicity while fixing log age. Currently assumes Av is 0.0
+    if args.plot_z_iso:
+        
+        instrument = os.getenv('INSTRUMENT')
+        if not instrument:
+            analyzer = IsochroneAnalyzer(isodir, None, None)  # Temporary instance to access methods
+            print("Currently available instruments for plotting:", ', '.join(analyzer.get_supported_instruments()))
+            instrument = input("Enter the instrument (e.g., ACS_HRC, ACS_WFC): ")
+
+        # Datasource is defined by 'INSTRUMENT' whether that is fetched by environment variables, or input manually
+        datasource = get_datasource(instrument)
+        
+        analyzer = IsochroneAnalyzer(isodir, instrument, datasource)
+
+        age = input("Enter a fixed log age: ")
+        zs = os.getenv('ZS')
+        if not zs:
+            zs = input("Enter comma-separated metallicities of interest: ").split(',')
+        
+        available_filters = analyzer.list_available_filters()
+        blue_mag = input("Enter the blue filter (e.g., F435W): ")
+        red_mag = input("Enter the red filter (e.g., F814W): ")
+
+        analyzer.plot_isochrones_by_metallicity(age, zs, blue_mag, red_mag, isodir)
+    
+    # Plot a single isochrone for a given age/metallicity, with given filters
+    if args.plot_single_iso:
+        
+        instrument = os.getenv('INSTRUMENT')
+        if not instrument:
+            analyzer = IsochroneAnalyzer(isodir, None, None)  # Temporary instance to access methods
+            print("Currently available instruments for plotting:", ', '.join(analyzer.get_supported_instruments()))
+            instrument = input("Enter the instrument (e.g., ACS_HRC, ACS_WFC): ")
+
+        # Datasource is defined by 'INSTRUMENT' whether that is fetched by environment variables, or input manually
+        datasource = get_datasource(instrument)
+        
+        analyzer = IsochroneAnalyzer(isodir, instrument, datasource) 
+
+        age = input("Enter the log age: ")
+        z = input("Enter the [M/H] metallicity: ")
+
+        available_filters = analyzer.list_available_filters()
+
+        blue_mag = input("Enter the blue filter (e.g., F435W): ")
+        red_mag = input("Enter the red filter (e.g., F814W): ")
+        analyzer.plot_single_isochrone(age, z, blue_mag, red_mag, isodir)
+
 def unpack_iso_set(isodir):
     # Find the environment variables. If missing, have user input the files they want to use.
     isosetfile = os.getenv('ISOSETFILE', input("Enter the isochrone set file name: "))
-    datasource = os.getenv('DATASOURCE', input("Enter the data source (e.g., HST, Bessell): "))
     instrument = os.getenv('INSTRUMENT', input("Enter the instrument (e.g., ACS_HRC, ACS_WFC): "))
+    # Datasource is defined by 'INSTRUMENT' whether that is fetched by environment variables, or input manually
+    datasource = get_datasource(instrument)
     
     unpacker = UnpackIsoSet(isodir, instrument, datasource)
     unpacker.read_iso_set(isosetfile)
