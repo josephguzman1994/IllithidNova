@@ -130,9 +130,9 @@ To use `Gale.py`, you can utilize the following command-line arguments:
 - `--download_iso`: Trigger the download of isochrone data.
 - `--UnpackIsoSet`: Unpack the downloaded `.set` file into separate `.npy` files.
 - `--isodir`: Specify the directory where unpacked data should be stored. If not utilized, defaults to the current working directory.
-- `--plot_age_iso`: Plot isochrones for varying ages and a fixed metallicity.
-- `--plot_z_iso`: Plot isochrones for varying metallicities and a fixed age.
-- `--plot_single_iso`: Plot a single isochrone for a given age and metallicity.
+- `--plot_age_iso`: Reads in unpacked .npy files to plot isochrones for varying ages and a fixed metallicity.
+- `--plot_z_iso`: Reads in unpacked .npy files to  plot isochrones for varying metallicities and a fixed age.
+- `--plot_single_iso`: Reads in unpacked .npy file to plot a single isochrone for a given age and metallicity.
 - `--MaxIsoAge`: Check the maximum isochrone age against table limits.
 
 ### Examples
