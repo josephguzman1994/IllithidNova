@@ -138,7 +138,121 @@ class UnpackIsoSet:
             isofile = os.path.join(self.isodir, f"{self.isodir}IsoParsec1.2_{self.datasource}_{self.instrument}_{lastlogage:.2f}_{lastmh:.1f}_0.0.npy")
             print(isofile, np.shape(isodata))
             np.save(isofile, isodata)
-            print(f"Processing isochrone data for {self.instrument}")
+
+class IsochroneAnalyzer:
+    def __init__(self, isodir, instrument, datasource):
+        self.isodir = isodir
+        self.instrument = instrument
+        self.datasource = datasource
+
+    def get_iso_index(self, mag):
+        """Return the index of the magnitude based on the instrument and magnitude name."""
+        index_map = {
+            'WFC3_UVIS': {
+                'F438W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
+            },
+            'ACS_WFC': {
+                'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
+            },
+            'ACS_HRC': {
+                'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
+            }
+        }
+        return index_map.get(self.instrument, {}).get(mag, None)
+    
+    def list_available_filters(self):
+        """List all unique filters available across all instruments."""
+        index_map = {
+            'WFC3': {
+                'F438W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
+            },
+            'ACS_WFC': {
+                'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
+            },
+            'ACS_HRC': {
+                'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
+            }
+        }
+        unique_filters = set()
+        for filters in index_map.values():
+            unique_filters.update(filters.keys())
+        print("Available filters:", ', '.join(sorted(unique_filters)))
+
+    async def check_max_iso_age(self):
+        # Ensure isodir is correctly set, default to current working directory if not
+        if not hasattr(self, 'isodir') or not self.isodir:
+            self.isodir = "./"  # Assuming files are in the current working directory
+        
+        # Retrieve and split the 'AGES' environment variable if it exists, otherwise prompt for input
+        ages = os.getenv('AGES')
+        if ages:
+            ages = ages.split(',')
+        else:
+            ages = input("Enter comma-separated ages of interest: ").split(',')
+
+        # Retrieve and split the 'ZS' environment variable if it exists, otherwise prompt for input
+        zs = os.getenv('ZS')
+        if zs:
+            zs = zs.split(',')
+        else:
+            zs = input("Enter comma-separated [M/H] values of interest: ").split(',')
+
+        mu = float(input("Enter the distance modulus (mu): "))
+        table_bluemax = float(input("Enter the maximum blue table value (table_bluemax): "))
+        self.list_available_filters()
+        blue_mag = input("Enter the blue filter (e.g., F435W, F475W): ")
+
+        iblue = self.get_iso_index(blue_mag)
+        if iblue is None:
+            print(f"Invalid magnitude for the instrument {self.instrument}.")
+            return
+
+        bluemin_global = -99.
+        # Initialize ages we may want to exclude from the analysis
+        excluded_ages = []
+        filename = f"CheckMaxIsoAge_{self.instrument}_{blue_mag}_{ages[0]}_{ages[-1]}.txt"
+        with open(filename, 'w') as file:
+            for age in ages:
+                age_excluded = False
+                for z in zs:
+                    # Have found that age and metallicity may either be 1 or 2 decimal places, leading to confusion finding files. Allow code to locate any combination of precision
+                    combinations = [
+                        (f"{float(age):.1f}", f"{float(z):.1f}"),
+                        (f"{float(age):.2f}", f"{float(z):.1f}"),
+                        (f"{float(age):.1f}", f"{float(z):.2f}"),
+                        (f"{float(age):.2f}", f"{float(z):.2f}")
+                    ]
+                    file_found = False
+                    for formatted_age, formatted_z in combinations:
+                        isofile = os.path.join(self.isodir, f"IsoParsec1.2_{self.datasource}_{self.instrument}_{formatted_age}_{formatted_z}_0.0.npy")
+                        if os.path.exists(isofile):
+                            # Load the isochrone data and calculate the minimum blue magnitude
+                            isodata = np.load(isofile)
+                            bluemin = np.min(isodata[:, iblue] + mu)
+                            bluemin_global = max(bluemin_global, bluemin)
+                            output = f'age = {formatted_age} z = {formatted_z} bluemin = {bluemin}'
+                            print(output)
+                            file.write(output + '\n')
+                            file_found = True
+                            # If the minimum blue magnitude is greater than the maximum table value, exclude the age
+                            if bluemin > table_bluemax:
+                                age_excluded = True
+                            break
+                    if not file_found:
+                        output = f"File not found: {isofile}"
+                        print(output)
+                        file.write(output + '\n')
+                if age_excluded:
+                    # Add the age to the list of excluded ages
+                    excluded_ages.append(age)
+
+            file.write(f'bluemin_global = {bluemin_global} table_bluemax = {table_bluemax}\n')
+            # Generate a list of recommended ages to use based upon the ages that have not been excluded
+            recommended_ages = [age for age in ages if age not in excluded_ages]
+            recommendation = f"Given that table_bluemax = {table_bluemax} and distance modulus = {mu}, we recommend you use these ages for {blue_mag}: {', '.join(recommended_ages)}"
+            print(recommendation)
+            file.write(recommendation + '\n')
+        print(f'bluemin_global = {bluemin_global} table_bluemax = {table_bluemax}\n')
 
 # Define the photometric_systems dictionary globally
 # Currently setup to use HST cameras.
@@ -156,6 +270,7 @@ async def main():
     parser = argparse.ArgumentParser(description="Process isochrone data and interact with CMD website.")
     parser.add_argument('--UnpackIsoSet', action='store_true', help="Unpack an isochrone set.")
     parser.add_argument('--download_iso', action='store_true', help="Download isochrone data.")
+    parser.add_argument('--MaxIsoAge', action='store_true', help="Check the maximum isochrone age against table limits.")
     parser.add_argument('--isodir', type=str, help="Choose directory to store unpacked data, defaults to current working directory.")
     args = parser.parse_args()
 
@@ -201,6 +316,18 @@ async def main():
             isoc_metlow = float(input("Enter the lower metallicity [M/H] limit (isoc_metlow): "))
             isoc_metupp = float(input("Enter the upper metallicity [M/H] limit (isoc_metupp): "))
             isoc_dmet = float(input("Enter the metallicity [M/H] step-size (isoc_dmet): "))
+
+            # Clear environment variables at the start of the script
+            os.environ.pop('AGES', None)
+            os.environ.pop('ZS', None)
+
+            # Compute age and metallicity arrays
+            ages = np.arange(isoc_lagelow, isoc_lageupp + isoc_dlage / 10, isoc_dlage)
+            zs = np.arange(isoc_metlow, isoc_metupp + isoc_dmet / 10, isoc_dmet)
+
+            # Convert arrays to comma-separated strings with two decimal precision and set environment variables
+            os.environ['AGES'] = ','.join(f"{age:.2f}" for age in ages)
+            os.environ['ZS'] = ','.join(f"{z:.2f}" for z in zs)
         
         except ValueError:
             print("Invalid input. Please enter a valid floating-point number.")
@@ -243,16 +370,26 @@ async def main():
             os.environ['INSTRUMENT'] = instrument_input
             os.environ['DATASOURCE'] = 'HST' if instrument_input in ['ACS_HRC', 'ACS_WFC', 'WFC3_UVIS', 'WFPC2'] else 'To Be Coded'
             print("Download complete.")
-            
+
+            # After setting the environment variables in the download_iso section
+            print("Environment Variables Set:")
+            print("ISOSETFILE:", os.getenv('ISOSETFILE'))
+            print("INSTRUMENT:", os.getenv('INSTRUMENT'))
+            print("DATASOURCE:", os.getenv('DATASOURCE'))
+            print("AGES:", os.getenv('AGES'))
+            print("ZS:", os.getenv('ZS'))
+            print("\n")
+                        
             # Use the directory specified by --isodir or default to the directory of the downloaded file
             if not args.isodir:
                 isodir = os.path.dirname(output_filename)
             
             if args.UnpackIsoSet:
-                print("Proceeding to unpack the data...")
+                instrument_input = os.getenv('INSTRUMENT', 'Unknown Instrument')
+                print(f"Proceeding to unpack isochrone data for {instrument_input}")
                 unpacker = UnpackIsoSet(isodir, instrument_input, os.getenv('DATASOURCE'))
                 unpacker.read_iso_set(output_filename)
-                print("Data unpacking complete.")
+                print("Data unpacking complete.\n")
         else:
             print("Failed to download or incorrect data received.")
 
@@ -262,6 +399,37 @@ async def main():
         unpacker = UnpackIsoSet(isodir, os.getenv('INSTRUMENT'), os.getenv('DATASOURCE'))
         isosetfile = os.getenv('ISOSETFILE', input("Enter the isochrone set file name: "))
         unpacker.read_iso_set(isosetfile)
+
+    if args.MaxIsoAge:
+        # Before using the environment variables in the MaxIsoAge section
+        print("Environment Variables Retrieved:")
+        print("INSTRUMENT:", os.getenv('INSTRUMENT'))
+        print("DATASOURCE:", os.getenv('DATASOURCE'))
+        print("AGES:", os.getenv('AGES'))
+        print("ZS:", os.getenv('ZS'))
+        print("\n")
+
+        # Check if the environment variables are set and only prompt for input if they are not.
+        instrument = os.getenv('INSTRUMENT')
+        if not instrument:
+            instrument = input("Enter the instrument (e.g., ACS_HRC, ACS_WFC): ")
+
+        datasource = os.getenv('DATASOURCE')
+        if not datasource:
+            datasource = input("Enter the data source (e.g., HST, Bessell): ")
+
+        ages = os.getenv('AGES')
+        if not ages:
+            ages = input("Enter comma-separated ages of interest: ")
+        ages = ages.split(',')
+
+        zs = os.getenv('ZS')
+        if not zs:
+            zs = input("Enter comma-separated [M/H] values of interest: ")
+        zs = zs.split(',')
+
+        analyzer = IsochroneAnalyzer(isodir, instrument, datasource)
+        await analyzer.check_max_iso_age()
 
 def unpack_iso_set(isodir):
     # Find the environment variables. If missing, have user input the files they want to use.
@@ -274,4 +442,3 @@ def unpack_iso_set(isodir):
 
 if __name__ == "__main__":
     asyncio.run(main())
-   
