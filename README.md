@@ -102,6 +102,8 @@ bash
   - **Direct Data Download and Save**: Automatically downloads the corresponding `.dat` (relabeled to `.set`) file containing the isochrone data, and saves it locally, handling any necessary URL corrections and format validations.
 - **Data Unpacking**: Converts downloaded `.set` files into `.npy` files, separating data into individual isochrones separated by appropriate age, metallicity combinations.
 - **Flexible Directory Handling**: Users can specify the output directory for unpacked files or use the default working directory.
+- **Plotting Isochrones**: Provides functionality to plot isochrones by age or metallicity, and single isochrone diagrams.
+- **Maximum Isochrone Age Check**: Allows users to check the maximum isochrone age against table limits to ensure data integrity.
 
 ## Configuration
 
@@ -116,6 +118,7 @@ bash
 - asyncio
 - BeautifulSoup
 - numpy
+- matplotlib
 
 ## Notes
 - Ensure that your internet connection is stable when downloading data from CMD 3.7.
@@ -127,6 +130,10 @@ To use `Gale.py`, you can utilize the following command-line arguments:
 - `--download_iso`: Trigger the download of isochrone data.
 - `--UnpackIsoSet`: Unpack the downloaded `.set` file into separate `.npy` files.
 - `--isodir`: Specify the directory where unpacked data should be stored. If not utilized, defaults to the current working directory.
+- `--plot_age_iso`: Plot isochrones for varying ages and a fixed metallicity.
+- `--plot_z_iso`: Plot isochrones for varying metallicities and a fixed age.
+- `--plot_single_iso`: Plot a single isochrone for a given age and metallicity.
+- `--MaxIsoAge`: Check the maximum isochrone age against table limits.
 
 ### Examples
 1. **Downloading and Unpacking Data**
