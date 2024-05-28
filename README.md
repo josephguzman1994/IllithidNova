@@ -1,5 +1,13 @@
 # IllithidNova
-IllithidNova is a place with multiple python tools for astronomers and astrophysicists. Currently contains Karlach.py which automates DOLPHOT processing, and Gale.py which automates queries to CMD 3.7 to download and unpack isochrones.
+IllithidNova is a place with multiple python tools for astronomers and astrophysicists. Currently contains Karlach.py which automates DOLPHOT processing, Gale.py which automates queries to CMD 3.7 to download and unpack isochrones, and Astarion.py which automates processes for the code StellarAges.
+
+## Contents
+
+- [Karlach.py - DOLPHOT Automation Tool](#karlachpy---dolphot-automation-tool)
+- [Gale.py - CMD 3.7 Isochrone Retrieval Tool](#galepy---cmd-37-isochrone-retrieval-tool)
+- [Astarion.py - Stellar Ages Process Automation](#astarionpy---stellarages-process-automation)
+- [Installation](#installation-for-karlach-and-gale)
+- [License](#license)
 
 # Karlach.py - Dolphot Automation Tool
 
@@ -155,6 +163,58 @@ bash
 ```cd IllithidNova```
 
 ```pip install -r requirements.txt```
+
+
+# Astarion.py - StellarAges Process Automation
+
+`Astarion.py` is a python script that automates some of the processing used in the code "[StellarAges](https://github.com/curiousmiah/StellarAges)", handling various tasks such as parameter validation, subprocess management, and data backup. It is currently designed to facilitate the generation of likelihood tables based on stellar parameters and supports functionalities like debugging and basic restarting processes with saved parameters.
+
+## Features
+
+- **Parameter Validation**: Ensures all input parameters (`genlikeliages`, `genlikelizs`, `genlikeliavtildes`) are of the correct type.
+- **Subprocess Management**: Automaically runs external commands in new terminal windows, allowing for parallel processing.
+- **Data Backup**: Automatically backs up initial parameter configurations before processing.
+- **Debug Mode**: Provides detailed information outputs without executing the main processing steps for user verification.
+- **Restart Capability**: Provides the user with the necessary information to restart the process using parameters from a backup file, helping to resume processing with the last known good configuration.
+
+## Dependencies
+
+- Python 3.x
+- Standard Python libraries: `os`, `itertools`, `subprocess`, `shutil`, `argparse`, `sys`, `time`
+
+Ensure Python 3.x is installed on your system. This script does not require external Python packages outside of the Python Standard Library.
+
+## Installation
+
+No installation is necessary. Simply download the script to your local machine.
+
+## Usage
+
+Run the script from the command line by navigating to the directory containing the script and executing:
+bash
+`python Astarion.py --option`
+
+### Options
+
+- `--MakeTables`: Generates likelihood tables based on the provided parameters in `Params.dat`. Opens up a desired number of terminals to parallelize this process efficiently.
+- `--debug`: Runs the script in debug mode, printing detailed processing steps without executing them.
+- `--restart`: Scans output files and suggests parameters to resume processing based on the initial backup.
+
+### Examples
+
+To process tables with current parameters:
+`python Astarion.py --MakeTables`
+
+To run in debug mode:
+`python Astarion.py --MakeTables --debug`
+
+To retrieve necessary information to restart MakeTables:
+`python Astarion.py --restart`
+
+## Notes
+- **File Not Found**: The script expects a `Params.dat` file in the working directory or specified path. Ensure this file exists before running. Follow the expected naming convention for parameters found in StellarAges"
+- **Resource Limitations**: Generating these likelihood tables and running many subprocesses may consume significant system resources. Monitor system performance and adjust the `max_terminals` setting if necessary.
+
 
 ## Contributing
 
