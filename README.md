@@ -1,4 +1,12 @@
-# IllithidNova
+<div style="display: flex; align-items: right;">
+  <div style="flex-grow: 1;">
+    <h1>IllithidNova</h1>
+    <p></p>
+  </div>
+  <div>
+    <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/0d03b419-000e-4e08-a35d-4832f5fb05bf" alt="IllithidNova" width="300">
+  </div>
+</div>
 IllithidNova is a place with multiple python tools for astronomers and astrophysicists. Currently contains Karlach.py which automates DOLPHOT processing, Gale.py which automates queries to CMD 3.7 to download and unpack isochrones, and Astarion.py which automates processes for the code StellarAges.
 
 ## Contents
@@ -9,7 +17,12 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
 - [Installation](#installation-for-karlach-and-gale)
 - [License](#license)
 
-# Karlach.py - Dolphot Automation Tool
+<div style="display: flex; align-items: center;">
+  <div style="flex-grow: 1;">
+    <h1 style="display: inline;">Karlach.py - Dolphot Automation Tool</h1>
+    <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/a70fd20a-a1b1-4c36-907c-43509ac5c729" alt="Dolphot Tool" style="width: 125px;">
+  </div>
+</div>
 
 `Karlach.py` is a Python script designed to automate various processes in the DOLPHOT photometry software, particularly tailored for handling astronomical data related to core-collapse supernovae. This tool simplifies the execution of DOLPHOT commands and organizes output data effectively.
 
@@ -98,7 +111,12 @@ bash
 - At the moment, calcsky defaults to these values:  15 35 -128 2.25 2.00, which is only relevant for certain photometric systems. If you would like to use other values, activate ```--calcsky_values``` when executing the dolphot process.
 - Testing of Karlach.py has only been completed with some ACS photometric systems. As a result, bugs may persist in other systems which will likely be worked out sooner, rather than later.
 
-# Gale.py - CMD 3.7 Isochrone Retrieval Tool
+<div style="display: flex; align-items: center;">
+  <div style="flex-grow: 1;">
+    <h1 style="display: inline;">Gale.py - CMD 3.7 Isochrone Retrieval Tool</h1>
+    <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/6deed2a1-8f87-4058-8996-9fcb145bbd54" alt="CMD 3.7 Tool" style="width: 125px;">
+  </div>
+</div>
 
 **Gale.py** is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.7 service hosted at `stev.oapd.inaf.it`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems. It is currently optimized to use the PARSEC and COLIBRI models to fetch photometric system data, which it then unpacks into structured `.npy` files for further analysis.
 
@@ -164,8 +182,12 @@ bash
 
 ```pip install -r requirements.txt```
 
-
-# Astarion.py - StellarAges Process Automation
+<div style="display: flex; align-items: center;">
+  <div style="flex-grow: 1;">
+    <h1 style="display: inline;">Astarion.py - StellarAges Process Automation</h1>
+    <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/b32038f6-3533-4294-a9e5-01feb7e63a02" alt="StellarAges Tool" style="width: 125px;">
+  </div>
+</div>
 
 `Astarion.py` is a python script that automates some of the processing used in the code "[StellarAges](https://github.com/curiousmiah/StellarAges)", handling various tasks such as parameter validation, subprocess management, and data backup. It is currently designed to facilitate the generation of likelihood tables based on stellar parameters and supports functionalities like debugging and basic restarting processes with saved parameters.
 
