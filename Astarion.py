@@ -21,6 +21,9 @@ class StellarProcess:
         self.debug = debug
         self.base_params = self.read_params()
 
+        # Set a default initial_params_filename
+        self.initial_params_filename = "Params.dat.InitialTables"
+
     def read_params(self):
         try:
             with open(self.params_file, 'r') as file:
@@ -88,8 +91,14 @@ class StellarProcess:
 
     def process_tables(self):
         try:
+            # Read the 'perfectsampleav' parameter from Params.dat
+            perfect_sample_av = self.read_params().get('perfectsampleav', 'False') == 'True'
+
+            # Determine the filename based on 'perfectsampleav'
+            self.initial_params_filename = "Params.dat.Initial_TZA_tables" if perfect_sample_av else "Params.dat.Initial_TZ_tables"
+
             # Backup the Params.dat file before any processing
-            shutil.copy(self.params_file, os.path.join(os.path.dirname(self.params_file), 'Params.dat.InitialTables'))
+            shutil.copy(self.params_file, os.path.join(os.path.dirname(self.params_file), self.initial_params_filename))
 
             ages = list(map(float, self.base_params['genlikeliages'].split(',')))
             zs = list(map(float, self.base_params['genlikelizs'].split(',')))
@@ -196,9 +205,17 @@ def main():
     stellar_process = StellarProcess(params_file =None, output_dir=output_dir, debug=args.debug)
     process_manager = ProcessManager(stellar_process)
 
+    
     if args.restart:
-        # Read initial parameters from Params.dat.initialAV
-        initial_params_file = os.path.join(output_dir, 'Params.dat.InitialTables')
+        # Read the 'perfectsampleav' parameter from Params.dat
+        perfect_sample_av = stellar_process.read_params().get('perfectsampleav', 'False') == 'True'
+
+        # Determine the filename based on 'perfectsampleav' in Params.dat
+        initial_params_filename = "Params.dat.Initial_TZA_tables" if perfect_sample_av else "Params.dat.Initial_TZ_tables"
+        output_filename = "remaining_av_combinations.txt" if perfect_sample_av else "remaining_tz_combinations.txt"
+
+        # Set the initial parameters file path
+        initial_params_file = os.path.join(output_dir, initial_params_filename)
         stellar_process.params_file = initial_params_file
         initial_params = stellar_process.read_params()
 
@@ -230,8 +247,8 @@ def main():
                             missing_combinations_by_mmin[mmin].append((age, z, av))
 
         # Write remaining combinations to file grouped by mmin
-        with open('remaining_combinations.txt', 'w') as file:
-            file.write("Comparing the output files found versus the initial parameters found in Params.dat.InitialTables, we recommend you set these parameters in Params.dat to pick up where you left off:\n\n")
+        with open(output_filename, 'w') as file:
+            file.write("Comparing the output files versus the initial parameters found, we recommend you set these parameters in Params.dat to pick up where you left off:\n\n")
             for mmin, combinations in missing_combinations_by_mmin.items():
                 unique_ages = sorted(set(age for age, _, _ in combinations))
                 unique_zs = sorted(set(z for _, z, _ in combinations))
@@ -242,7 +259,7 @@ def main():
                 file.write(f"genlikelizs = {unique_zs}\n")
                 file.write(f"genlikeliavtildes = {unique_avtildes}\n\n")
 
-        print("To resume with remaining combinations, please see 'remaining_combinations.txt'")
+        print(f"To resume with remaining combinations, please see '{output_filename}'")
         return
 
     if args.debug:
@@ -251,8 +268,9 @@ def main():
     try:
         if args.MakeTables:
             print("MakeTables argument detected, processing tables...")
-            print(f"Initial parameter configuration saved to: {os.path.join(os.path.dirname(stellar_process.params_file), 'Params.dat.InitialTables')}\n")
             stellar_process.process_tables()
+            print(f"Initial parameter configuration saved to: {os.path.join(os.path.dirname(stellar_process.params_file), stellar_process.initial_params_filename)}\n")
+            
             
     except KeyboardInterrupt:
         print("Keyboard interrupt received, exiting.")
