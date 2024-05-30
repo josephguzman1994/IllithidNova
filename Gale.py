@@ -198,24 +198,10 @@ class IsochroneAnalyzer:
         print("Currently available filters:", ', '.join(sorted(unique_filters)))
         return unique_filters
 
-    async def check_max_iso_age(self):
+    async def check_max_iso_age(self, ages, zs):
         # Ensure isodir is correctly set, default to current working directory if not
         if not hasattr(self, 'isodir') or not self.isodir:
             self.isodir = "./"  # Assuming files are in the current working directory
-        
-        # Retrieve and split the 'AGES' environment variable if it exists, otherwise prompt for input
-        ages = os.getenv('AGES')
-        if ages:
-            ages = ages.split(',')
-        else:
-            ages = input("Enter comma-separated ages of interest: ").split(',')
-
-        # Retrieve and split the 'ZS' environment variable if it exists, otherwise prompt for input
-        zs = os.getenv('ZS')
-        if zs:
-            zs = zs.split(',')
-        else:
-            zs = input("Enter comma-separated [M/H] values of interest: ").split(',')
 
         mu = float(input("Enter the distance modulus (mu): "))
         table_bluemax = float(input("Enter the maximum blue table value (table_bluemax): "))
@@ -230,6 +216,7 @@ class IsochroneAnalyzer:
         bluemin_global = -99.
         # Initialize ages we may want to exclude from the analysis
         excluded_ages = []
+        outputs = []
         filename = f"CheckMaxIsoAge_{self.instrument}_{blue_mag}_{ages[0]}_{ages[-1]}.txt"
         with open(filename, 'w') as file:
             for age in ages:
@@ -252,7 +239,7 @@ class IsochroneAnalyzer:
                             bluemin_global = max(bluemin_global, bluemin)
                             output = f'age = {formatted_age} z = {formatted_z} bluemin = {bluemin}'
                             print(output)
-                            file.write(output + '\n')
+                            outputs.append(output)
                             file_found = True
                             # If the minimum blue magnitude is greater than the maximum table value, exclude the age
                             if bluemin > table_bluemax:
@@ -261,18 +248,24 @@ class IsochroneAnalyzer:
                     if not file_found:
                         output = f"File not found: {isofile}"
                         print(output)
-                        file.write(output + '\n')
+                        outputs.append(output)
                 if age_excluded:
                     # Add the age to the list of excluded ages
                     excluded_ages.append(age)
 
-            file.write(f'bluemin_global = {bluemin_global} table_bluemax = {table_bluemax}\n')
             # Generate a list of recommended ages to use based upon the ages that have not been excluded
             recommended_ages = [age for age in ages if age not in excluded_ages]
-            recommendation = f"Given that table_bluemax = {table_bluemax} and distance modulus = {mu}, we recommend you only use these ages for {blue_mag}: {', '.join(recommended_ages)}"
+            recommendation = f"Given that table_bluemax = {table_bluemax} and distance modulus = {mu}, we recommend you only use these ages for {blue_mag}: {', '.join(recommended_ages)}\n"
             print(recommendation)
-            file.write(recommendation + '\n')
-        print(f'bluemin_global = {bluemin_global} table_bluemax = {table_bluemax}\n')
+
+            # Write to file with the recommendation first
+            with open(filename, 'w') as file:
+                file.write(recommendation + '\n')
+                file.write(f'bluemin_global = {bluemin_global} table_bluemax = {table_bluemax}\n')
+                for output in outputs:
+                    file.write(output + '\n')
+
+            print(f'bluemin_global = {bluemin_global} table_bluemax = {table_bluemax}\n')
 
     def plot_age_iso(self, ages, z, blue_mag, red_mag, isodir):
         plt.figure()
@@ -296,15 +289,15 @@ class IsochroneAnalyzer:
                 # Generate a color from the colormap based on the index
                 plot_color = cmap(index / num_ages)
                 plt.plot(color, magnitude, color=plot_color)
-                plt.text(color[-1], magnitude[-1], f'{age}', color=plot_color, fontsize=6)
+                plt.text(color[-1], magnitude[-1], f'{age}', color=plot_color, fontsize=5)
             else:
                 print(f"File not found: {isofile}")
 
         plt.xlabel(f'{blue_mag} - {red_mag}')
         plt.ylabel(f'{red_mag}')
         plt.gca().invert_yaxis()
-        plt.title(f'Age CMDs at [M/H] = {formatted_z}: {self.instrument}')
-        plt.savefig(f'Iso_{self.instrument}__Ages_{ages[0]}_{ages[-1]}.png')
+        plt.title(f'Age CMDs at [M/H] = {formatted_z}')
+        plt.savefig(f'Iso_Ages_{ages[0]}_{ages[-1]}.png')
         plt.show()
 
     def plot_isochrones_by_metallicity(self, age, zs, blue_mag, red_mag, isodir):
@@ -343,8 +336,8 @@ class IsochroneAnalyzer:
         plt.ylabel(f'{red_mag}')
         plt.gca().invert_yaxis()
         plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
-        plt.title(f'[M/H] CMDs at log Age = {age}: {self.instrument}')
-        plt.savefig(f'Iso_{self.instrument}_ZS_{zs[0]}_{zs[-1]}.png')
+        plt.title(f'Metallicity CMDs at log Age = {age}')
+        plt.savefig(f'Iso_ZS_{zs[0]}_{zs[-1]}.png')
         plt.show()
 
     def plot_single_isochrone(self, age, z, blue_mag, red_mag, isodir):
@@ -365,8 +358,8 @@ class IsochroneAnalyzer:
         plt.xlabel(f'{blue_mag} - {red_mag}')
         plt.ylabel(f'{red_mag}')
         plt.gca().invert_yaxis()
-        plt.title(f'CMD: {self.instrument}')
-        plt.savefig(f'SingleIso_{self.instrument}_Age_{age}_Z_{z}.png')
+        plt.title('Single Isochrone Color-Magnitude Diagram')
+        plt.savefig(f'SingleIsoPlot_{age}_{z}.png')
         plt.show()
 
 # Define the photometric_systems dictionary globally
@@ -539,19 +532,11 @@ async def main():
         # Datasource is defined by 'INSTRUMENT' whether that is fetched by environment variables or input manually
         datasource = get_datasource(instrument)
 
-        # Environment Variable AGES and ZS are set when the user initializes --download_iso simultaneously.
-        ages = os.getenv('AGES')
-        if not ages:
-            ages = input("Enter comma-separated ages of interest: ")
-        ages = ages.split(',')
-
-        zs = os.getenv('ZS')
-        if not zs:
-            zs = input("Enter comma-separated [M/H] values of interest: ")
-        zs = zs.split(',')
+        ages = os.getenv('AGES').split(',') if os.getenv('AGES') else input("Enter comma-separated ages of interest: ").split(',')
+        zs = os.getenv('ZS').split(',') if os.getenv('ZS') else input("Enter comma-separated [M/H] values of interest: ").split(',')
 
         analyzer = IsochroneAnalyzer(isodir, instrument, datasource)
-        await analyzer.check_max_iso_age()
+        await analyzer.check_max_iso_age(ages, zs)
 
     # Plot isochrones of varying log ages while fixing metallicity. Currently assumes Av is 0.0
     if args.plot_age_iso:
