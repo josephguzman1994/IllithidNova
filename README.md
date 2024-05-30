@@ -4,7 +4,7 @@
     <p></p>
   </div>
   <div>
-    <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/0d03b419-000e-4e08-a35d-4832f5fb05bf" alt="IllithidNova" width="300">
+    <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/ece65425-b8b6-420c-9d90-41e9775f14fa" alt="IllithidNova" width="300">
   </div>
 </div>
 IllithidNova is a place with multiple python tools for astronomers and astrophysicists. Currently contains Karlach.py which automates DOLPHOT processing, Gale.py which automates queries to CMD 3.7 to download and unpack isochrones, and Astarion.py which automates processes for the code StellarAges.
