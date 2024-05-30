@@ -747,12 +747,32 @@ class PlotManager:
         return fig
 
     def plot_uncertainty(self, mag, unc, mag_label, unc_label, title):
-        fig = plt.figure(figsize=(8, 8))
-        plt.scatter(mag, unc)
-        plt.xlim(16, 30) #limits currently hardcoded by eye
-        plt.xlabel(mag_label, fontsize=10, ha='center')
-        plt.ylabel(unc_label, fontsize=10)
-        plt.title(title)
+        fig, ax = plt.subplots(figsize=(8, 8))
+        ax.scatter(mag, unc)
+        
+        # Find the lowest magnitude point with uncertainty >= 0.10
+        mag_0_10 = mag[unc >= 0.10]
+        if len(mag_0_10) > 0:
+            min_mag_0_10 = min(mag_0_10)
+            ax.plot([16, min_mag_0_10], [0.10, 0.10], color='r', linestyle='--', label='0.10 Uncertainty Threshold')
+            ax.plot([min_mag_0_10, min_mag_0_10], [-0.01, 0.10], color='r', linestyle='--')
+            ax.text(0.95, 0.90, f'Mag @ 0.10 Unc: {min_mag_0_10:.2f}', ha='right', va='top', color='r', transform=ax.transAxes)
+
+        # Find the lowest magnitude point with uncertainty >= 0.15
+        mag_0_15 = mag[unc >= 0.15]
+        if len(mag_0_15) > 0:
+            min_mag_0_15 = min(mag_0_15)
+            ax.plot([16, min_mag_0_15], [0.15, 0.15], color='g', linestyle='--', label='0.15 Uncertainty Threshold')
+            ax.plot([min_mag_0_15, min_mag_0_15], [-0.01, 0.15], color='g', linestyle='--')
+            ax.text(0.95, 0.85, f'Mag @ 0.15 Unc: {min_mag_0_15:.2f}', ha='right', va='top', color='g', transform=ax.transAxes)
+
+        ax.set_xlim(16, 30)  # Adjust these limits based on your data
+        ax.set_ylim(bottom=-0.01)  # Ensure the y-axis starts slightly below 0
+        ax.set_xlabel(mag_label, fontsize=10, ha='center')
+        ax.set_ylabel(unc_label, fontsize=10)
+        ax.set_title(title)
+        ax.legend()
+        plt.tight_layout()
         return fig
 
     def plot_skycoord(self, ra, dec, sn_ra, sn_dec, obj_name, title):
@@ -993,13 +1013,13 @@ def main():
             system_choice = None
 
             if system_name:
-                # Extract the base system name in case it includes additional descriptors
+                # Extract the base system name in case it includes additional descriptors e.g. remove the _HRC in ACS_HRC
                 base_system_name = system_name.split('_')[0]
                 if base_system_name in valid_systems:
                     system_choice = base_system_name.lower()  # Use lower case for command consistency
 
             if system_choice:
-                # Prep working directory to only include .fits files you want to process. Save backup of image files elsewhere
+                # Before executing, prep working directory to only include .fits files you want to process. Save backup of image files elsewhere, as files will be altered
                 mask_command = f"{system_choice}mask *.fits"
                 if continue_prompt(f"Do you want to run '{mask_command}'? (y/n): "):
                     output_mask = f'{system_choice}mask_{obj_name}.log'
@@ -1012,7 +1032,7 @@ def main():
 
         # Step 2: Run the splitgroups command
         if continue_prompt("Proceed to run splitgroups? (y/n): "):
-            # List of system names that should skip splitgroups inferred from dolphot manuals
+            # List of system names that should skip splitgroups, inferred from dolphot manuals
             skip_splitgroups_systems = ['ACS_HRC', 'WFC3_IR', 'NIRCAM', 'NIRISS', 'MIRI', 'ROMAN']
             
             # Retrieve the system name from the configuration
