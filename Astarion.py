@@ -108,7 +108,7 @@ class StellarProcess:
             age_ranges = {
                 4.0: [age for age in ages if age <= 7.80],
                 2.0: [age for age in ages if 7.80 < age <= 8.60],
-                1.0: [age for age in ages if age > 8.60]
+                0.5: [age for age in ages if age > 8.60]
             }
 
             # Calculate total combinations and determine chunks per category
@@ -119,8 +119,8 @@ class StellarProcess:
                 combinations_per_category[min_mass] = combinations
                 total_combinations += len(combinations)
 
-            # Aim for a set amount of terminals
-            desired_terminals = 4
+            # Aim for a set amount of terminals: On my personal machine, I found running 7 led to unsustainable CPU temps (~90 degrees C). Attempting to use 6 now.
+            desired_terminals = 6
             chunks_per_category = {}
             for min_mass, combinations in combinations_per_category.items():
                 proportion = len(combinations) / total_combinations
@@ -230,7 +230,7 @@ def main():
         age_ranges = {
             4.0: [age for age in map(float, initial_params['genlikeliages'].split(',')) if age <= 7.80],
             2.0: [age for age in map(float, initial_params['genlikeliages'].split(',')) if 7.80 < age <= 8.60],
-            1.0: [age for age in map(float, initial_params['genlikeliages'].split(',')) if age > 8.60]
+            0.5: [age for age in map(float, initial_params['genlikeliages'].split(',')) if age > 8.60]
         }
 
         # Scan existing output files
