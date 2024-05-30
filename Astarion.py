@@ -160,6 +160,7 @@ class StellarProcess:
                     self.run_subprocess(f"echo '{debug_info}'", debug=False)  # Open terminal and display debug info
                 else:
                     self.run_subprocess(command)
+                    time.sleep(6)
 
         except Exception as e:
             print(f"An error occurred in process_tables: {e}")
