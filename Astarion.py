@@ -91,83 +91,76 @@ class StellarProcess:
 
     def process_tables(self):
         try:
-            # Read the 'perfectsampleav' parameter from Params.dat
             perfect_sample_av = self.read_params().get('perfectsampleav', 'False') == 'True'
-
-            # Determine the filename based on 'perfectsampleav'
             self.initial_params_filename = "Params.dat.Initial_TZA_tables" if perfect_sample_av else "Params.dat.Initial_TZ_tables"
-
-            # Backup the Params.dat file before any processing
             shutil.copy(self.params_file, os.path.join(os.path.dirname(self.params_file), self.initial_params_filename))
 
             ages = list(map(float, self.base_params['genlikeliages'].split(',')))
             zs = list(map(float, self.base_params['genlikelizs'].split(',')))
             avtildes = list(map(float, self.base_params['genlikeliavtildes'].split(',')))
 
-            # Split ages based on minimum mass criteria
             age_ranges = {
                 4.0: [age for age in ages if age <= 7.80],
                 2.0: [age for age in ages if 7.80 < age <= 8.60],
                 0.5: [age for age in ages if age > 8.60]
             }
 
-            # Calculate total combinations and determine chunks per category
-            total_combinations = 0
-            combinations_per_category = {}
+            desired_terminals = 6
+            total_combinations = sum(len(self.generate_combinations(age_range, zs, avtildes)) for age_range in age_ranges.values())
+            terminal_combinations = []
+
+            # Generate and distribute combinations for each mass range
             for min_mass, age_range in age_ranges.items():
                 combinations = self.generate_combinations(age_range, zs, avtildes)
-                combinations_per_category[min_mass] = combinations
-                total_combinations += len(combinations)
-
-            # Aim for a set amount of terminals: On my personal machine, I found running 7 led to unsustainable CPU temps (~90 degrees C). Attempting to use 6 now.
-            desired_terminals = 6
-            chunks_per_category = {}
-            for min_mass, combinations in combinations_per_category.items():
                 proportion = len(combinations) / total_combinations
-                chunks_per_category[min_mass] = max(1, round(proportion * desired_terminals))
+                num_terminals_for_range = max(1, round(proportion * desired_terminals))
 
-            terminal_count = 0
-            max_terminals = 10  # Set a safe limit for open terminals
+                # Adjust the number of terminals if the total exceeds the desired count
+                if sum(num_terminals_for_range for _, _ in terminal_combinations) + num_terminals_for_range > desired_terminals:
+                    num_terminals_for_range = max(1, desired_terminals - sum(num_terminals_for_range for _, _ in terminal_combinations))
 
-            # Process each category with calculated chunks
-            for min_mass, combinations in combinations_per_category.items():
-                num_chunks = chunks_per_category[min_mass]
-                chunks = [combinations[i::num_chunks] for i in range(num_chunks)]
+                num_combinations_per_terminal = len(combinations) // num_terminals_for_range
+                extra_combinations = len(combinations) % num_terminals_for_range
 
-                for index, chunk in enumerate(chunks):
-                    debug_info = f"Chunk {index + 1} for Min Mass {min_mass}:\n"
-                    ages_set = set()
-                    zs_set = set()
-                    avtildes_set = set()
-
-                    for age, z, avtilde in chunk:
-                        ages_set.add(age)
-                        zs_set.add(z)
-                        avtildes_set.add(avtilde)
-                        debug_info += f"Age: {age}, Z: {z}, Avtilde: {avtilde}, Min Mass: {min_mass}\n"
-
-                    # Prepare parameters for writing to params.dat
-                    chunk_params = {
-                        'genlikeliages': ', '.join(map(str, sorted(ages_set))),
-                        'genlikelizs': ', '.join(map(str, sorted(zs_set))),
-                        'genlikeliavtildes': ', '.join(map(str, sorted(avtildes_set))),
-                        'genlikelimmin': str(min_mass)
-                    }
-
-                    # Write the collected parameters for the entire chunk to params.dat
-                    self.write_params(chunk_params)
-
-                    if self.debug:
-                        self.run_subprocess(debug_info, debug=True)
+                current_index = 0
+                for i in range(num_terminals_for_range):
+                    if i < extra_combinations:
+                        end_index = current_index + num_combinations_per_terminal + 1
                     else:
-                        command = f"python3 /home/joe/Research/StellarAges/StellarAges.py --Generatelikelihood"
-                        self.run_subprocess(command)
-                        time.sleep(6)  # Time delay to allow the command to start processing before writing to the next file.
-                        terminal_count += 1
+                        end_index = current_index + num_combinations_per_terminal
 
-                    if terminal_count >= max_terminals:
-                        input("Press Enter to continue with the next set of terminals...")
-                    print("Successfully executing tables in new terminal")
+                    terminal_combinations.append((combinations[current_index:end_index], min_mass))
+                    current_index = end_index
+
+            # Process each terminal's combinations
+            for i, (combinations, min_mass) in enumerate(terminal_combinations):
+                unique_ages = sorted(set(age for age, _, _ in combinations))
+                unique_zs = sorted(set(z for _, z, _ in combinations))
+                unique_avtildes = sorted(set(av for _, _, av in combinations))
+
+                chunk_params = {
+                    'genlikeliages': ', '.join(map(str, unique_ages)),
+                    'genlikelizs': ', '.join(map(str, unique_zs)),
+                    'genlikeliavtildes': ', '.join(map(str, unique_avtildes)),
+                    'genlikelimmin': f"{min_mass:.1f}"
+                }
+
+                self.write_params(chunk_params)
+
+                command = f"python3 /home/joe/Research/StellarAges/StellarAges.py --Generatelikelihood"
+                debug_info = f"Terminal {i+1}:\n" \
+                            f"genlikelimmin = {min_mass}\n" \
+                            f"genlikeliages = {chunk_params['genlikeliages']}\n" \
+                            f"genlikelizs = {chunk_params['genlikelizs']}\n" \
+                            f"genlikeliavtildes = {chunk_params['genlikeliavtildes']}\n" \
+                            f"Combinations: {len(combinations)}"
+
+                if self.debug:
+                    print(debug_info)
+                    self.run_subprocess(f"echo '{debug_info}'", debug=False)  # Open terminal and display debug info
+                else:
+                    self.run_subprocess(command)
+
         except Exception as e:
             print(f"An error occurred in process_tables: {e}")
         print("Exiting process_tables")
