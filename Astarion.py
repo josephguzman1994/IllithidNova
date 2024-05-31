@@ -129,6 +129,12 @@ class StellarProcess:
                     else:
                         end_index = current_index + num_combinations_per_terminal
 
+                    # Ensure unique combinations by adjusting the end_index if necessary
+                    if i < num_terminals_for_range - 1:  # Not the last terminal
+                        # Move the end_index back if it's the start of a new age
+                        while end_index < len(combinations) and combinations[end_index][0] == combinations[end_index - 1][0]:
+                            end_index -= 1
+
                     terminal_combinations.append((combinations[current_index:end_index], min_mass))
                     current_index = end_index
 
