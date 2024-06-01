@@ -690,8 +690,8 @@ class PlotManager:
         np.save(file_name_npy, data_array)
 
         print(f"\nMagnitudes and Uncertainties saved to {file_name_txt} and {file_name_npy}")
-        print(f"Full dataset saved to {full_file_name_txt} and {full_file_name_npy}")
-        print(f"Shape of data file (number of stars, columns):",np.shape(data_array),"\n")
+        print(f"Shape of mag_unc file (number of stars, columns):",np.shape(data_array))
+        print(f"Full dataset saved to {full_file_name_txt} and {full_file_name_npy}\n")
 
     #Define each plot individually, allows greater control, ease of debugging, modularity. Con is tracking down all the proper
     #Things to pass to each plot.
