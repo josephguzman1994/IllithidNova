@@ -45,31 +45,31 @@ Below are the command-line arguments available in `Karlach.py`:
 - `--interactive`: Enables interactive mode, prompting user confirmation before proceeding with each step.
 - `--dolphot_only`: Executes DOLPHOT processing assuming all preparatory steps have been completed.
 - `--calcsky_values`: Allows the user to provide custom values for the calcsky command.
-- `--headerkeys`: Generates header key information without performing the entire DOLPHOT process.
+- `--headerkeys`: Generates header key information from .fits files without performing the entire DOLPHOT process.
 - `--phot`: Generates plots from the DOLPHOT photometry output.
-- `--save_data`: Saves quality and distance filtered data to a file.
-- `--pdf [file.pdf]`: Specifies the output PDF file to save the plots.
+- `--save_data`: Saves quality and distance filtered data sets to file.
+- `--pdf`: Specifies the plot outputs to PDF file, rather than display.
 
 ## Configuration
 
-`Karlach.py` utilizes a `config.ini` file to manage various settings and parameters for the DOLPHOT photometry software. This configuration is specifically tailored for different imaging systems such as ACS_HRC, ACS_WFC, WFC3_UVIS, and others. Each section in the file corresponds to a specific instrument or module and contains parameters that control aspects of the photometry process, including aperture sizes, PSF settings, alignment, and noise handling.
+`Karlach.py` utilizes a `config.ini` file to manage various settings and parameters for the DOLPHOT photometry software. This configuration is specifically tailored for different imaging systems such as ACS_HRC, ACS_WFC, WFC3_UVIS, and others. Each section in the file corresponds to a specific instrument or module and contains parameters that control aspects of the photometry process, including aperture sizes, PSF settings, alignment, and noise handling. An example `config.ini` is provided for you in the repo.
 
 ### Structure of `config.ini`
 
-- **[DOLPHOT_CONFIG]**: Contains global settings for the DOLPHOT run, including paths, object names, and reference files.
-  - **System Name**: Define the photometric system used (e.g., ACS_WFC, WFC3_UVIS).
-  - **Object Name**: Specify the name of the astronomical object being analyzed.
-  - **Make Path**: Set the path to the DOLPHOT makefile directory.
-  - **distance**: in units of parsecs to the object of interest. Necessary for processing data, making distance mask, absolute magnitude plots, etc.
-  - **Phot File and Ref File**: Specify the names of the photometry and reference image files. These can be automatically filled in when executing `--phot` immediately after `--dolphot`.
+- **[DOLPHOT_CONFIG]**: Contains global settings for the DOLPHOT run, including file paths, object names, and reference files.
+  - **system_name**: Define the photometric system used (e.g., ACS_WFC, WFC3_UVIS).
+  - **obj_name**: Specify the name of the astronomical object being analyzed. The code will attempt to query SIMBAD for relevant coordinates.
+  - **make_path**: Set the path to your DOLPHOT makefile directory.
+  - **distance**: in units of parsecs to the object of interest. Necessary for processing dolphot output, making distance mask, absolute magnitude plots, etc.
+  - **phot_file and ref_file**: Specify the names of the photometry and reference image files. These can be automatically filled in when executing `--phot` immediately after `--dolphot`.
  
-  - Below 'DOLPHOT_CONFIG', please define a section with keys and values for your chosen photometric system to generate the appropriate dolphot parameter file. Only the photometric system that matches the 'System Name' chosen above will be utilized.
+  - Below 'DOLPHOT_CONFIG', please define a section with keys and values for your chosen photometric system to generate the appropriate dolphot parameter file.
 
-- **[ACS_HRC]**: Parameters specific to the ACS/HRC system, controlling detailed aspects of the photometry process such as centroiding, sky measurement, PSF fitting, and image alignment.
+- **Chosen Photometric System Section, e.g.: [ACS_HRC]**: Parameters specific to the ACS/HRC system, controlling detailed aspects of the photometry process such as centroiding, sky measurement, PSF fitting, and image alignment. Define each parameter as specified in the DOLPHOT manual, or user preference.
 
-- **[ACS_WFC], [WFC3_UVIS], [WFC3_IR], [WFPC2], [ROMAN], [NIRCAM], [NIRISS], [MIRI]**: These sections are expected to contain similar detailed parameters as seen in the ACS_HRC section, tailored for each specific instrument or module.
+- **[ACS_WFC], [WFC3_UVIS], [WFC3_IR], [WFPC2], [ROMAN], [NIRCAM], [NIRISS], [MIRI]**: Similarly, these sections are expected to contain various detailed parameters, tailored for each specific instrument or module. You may store your preferred system settings here as only the photometric system that matches the 'System Name' chosen above will be utilized.
 
-- **[Fake_Stars]**: Controls settings for generating and handling fake stars in the images, useful for testing and calibration purposes.
+- **[Fake_Stars]**: Controls settings for generating and handling fake stars in the images, useful for testing and calibration purposes. There is currently no separate command / built in capabilities to handle artificial star tests, however if desired, one could alter the code to utilize the ```-dolphot_only``` command, as initiating fakestars is similar to executing 'dolphot', while utilizing the parameters one would presumably define under this section.
 
 ### Generating Parameters for Each System
 
@@ -94,22 +94,21 @@ Please find installation instructions towards the bottom of this README for more
 
 Here are some example commands to get you started:
 bash
-#### Run make clean, and make
+#### Run make clean, and make (prepare to use new photometric system with DOLPHOT)
 ```python Karlach.py --make```
 #### Execute DOLPHOT processing
 ```python Karlach.py --dolphot --interactive```
-#### Create dolphot parameter file by itself, assuming preprocessing has been done separately.
+#### Generate the dolphot parameter file by itself, assuming preprocessing (mask, splitgroups, calcsky) have been done separately.
 ```python Karlach.py --param```
-#### Generate plots and save them to a PDF
-```python Karlach.py --phot --pdf output.pdf```
-#### Save dolphot photometry data with quality and distance masks
-```python Karlach.py --save_data ```
+#### Save dolphot photometry data with quality and distance masks, and plot the freshly made data sets to .pdf
+```python Karlach.py --save_data --phot --pdf```
 
 ## Notes
 - Executing ```--make``` assumes you have dolphot2.0 installed, as well as the necessary PSF and PAM files for your images. Verify that your 'Makefile' is in your /dolphot2.0/ directory.
 - In case you are unaware, executing some of the dolphot commands assumes you are in the dolphot2.0 directory. Therefore, you may want to edit your .bashrc file (or equivalent) to execute these commands elsewhere.
 - At the moment, calcsky defaults to these values:  15 35 -128 2.25 2.00, which is only relevant for certain photometric systems. If you would like to use other values, activate ```--calcsky_values``` when executing the dolphot process.
-- Testing of Karlach.py has only been completed with some ACS photometric systems. As a result, bugs may persist in other systems which will likely be worked out sooner, rather than later.
+- Testing of Karlach.py ```--dolphot``` has thus far been completed with some ACS photometric systems. As a result, bugs may persist in other systems which will likely be worked out sooner, rather than later.
+- Currently ```--save_data``` assumes a default distance from the SN (or object of interest) of 50, 100, and 150 pc. Therefore ```--save_data``` generates 3 different sets of data simultaneously as the default. If you would like to use a different set of distances for the distance mask, please define in your config.ini file, 'proximity_threshold_pc = ' followed by your comma separated values of interest.
 
 <div style="display: flex; align-items: center;">
   <div style="flex-grow: 1;">
@@ -134,7 +133,7 @@ bash
 ## Configuration
 
 - Users are prompted to enter specific parameters such as photometric system and age limits. These inputs dictate the scope of the data to be downloaded and processed.
-- Users can modify the `photometric_systems` dictionary, or the `form_data` to add or change to their desired settings and use cases.
+- Users can modify the `photometric_systems` dictionary, or the `form_data` within the script to add or change to their desired settings and use cases.
 - Default values and error handling behaviors can be adjusted within the script.
 
 ## Dependencies
@@ -227,14 +226,14 @@ bash
 To process tables with current parameters:
 `python Astarion.py --MakeTables`
 
-To run in debug mode:
+To run in debug mode (mimics ```--MakeTables``` behavior, but does not execute command):
 `python Astarion.py --MakeTables --debug`
 
 To retrieve necessary information to restart MakeTables:
 `python Astarion.py --restart`
 
 ## Notes
-- **File Not Found**: The script expects a `Params.dat` file in the working directory or specified path. Ensure this file exists before running. Follow the expected naming convention for parameters found in StellarAges"
+- **File Not Found**: The script expects a `Params.dat` file in the working directory or specified path. Ensure this file exists before running. Follow the expected naming conventions for parameters found in StellarAges"
 - **Resource Limitations**: Generating these likelihood tables and running many subprocesses may consume significant system resources. Monitor system performance and adjust the `max_terminals` setting if necessary.
 
 
