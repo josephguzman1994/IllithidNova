@@ -151,11 +151,6 @@ bash
 - astropy
 - requests
 
-## Notes
-- Ensure that your internet connection is stable when downloading data from CMD 3.7 and or MAST.
-- For downloading isochrones, the script currently does not handle gzip-compressed files. If you need to download large datasets, consider modifying the script (under `form_data`) to handle gzip compression.
-- For downloading HST MAST data, there are several key assumptions which are currently hard-coded into the class `HST_MAST_Query`. The search filters are: datasets within 1 arcminute of the target, an exposure time greater than or equal to 1000 seconds (necessary for Stellar Ages), return Science images only, and only keep ACS, WFC3, WFPC1 and WFPC2 instruments. Then after selecting the datasets to download, it is currently hardcoded to only download calibrated data products: drz, drc, flc or flt image files (necessary for DOLPHOT).
-
 ## Usage
 To use `Gale.py`, you can utilize the following command-line arguments:
 
@@ -178,6 +173,11 @@ This command will prompt the user to input a target name, then will proceed to a
 3. **Unpacking Existing Data and Choosing Output Directory**
 bash ```python3 Gale.py --UnpackIsoSet --isodir /path/to/directory```
 This uses an existing `.set` file to unpack the data in a specified directory. If you ran ```--download_iso``` in the same terminal session, it will use the environment variables to automatically find the output files. Otherwise, you will be prompted manually define the necessary files with terminal input.
+
+## Notes
+- Ensure that your internet connection is stable when downloading data from CMD 3.7 and or MAST.
+- For downloading isochrones, the script currently does not handle gzip-compressed files. If you need to download large datasets, consider modifying the script (under `form_data`) to handle gzip compression.
+- For downloading HST MAST data, there are several key assumptions which are currently hard-coded into the class `HST_MAST_Query`. The search filters are: datasets within 1 arcminute of the target, an exposure time greater than or equal to 1000 seconds (necessary for Stellar Ages), return Science images only, and only keep ACS, WFC3, WFPC1 and WFPC2 instruments. Then after selecting the datasets to download, it is currently hardcoded to only download calibrated data products: drz, drc, flc or flt image files (necessary for DOLPHOT).
 
 ## Installation (For Karlach and Gale)
 
