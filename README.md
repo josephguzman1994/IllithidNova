@@ -268,12 +268,16 @@ bash
   `python Astarion.py --option`
   
   ### Options
-  
+
+  - `--tz_params`: Generates the Params.dat file for generating likelihood tables in TZ mode
+  - `--tza_params`: Generates the Params.dat file for generating likelihood tables in TZA mode
   - `--MakeTables`: Generates likelihood tables based on the provided parameters in `Params.dat`. Opens up a desired number of terminals to parallelize this process efficiently.
   - `--debug`: Runs the script in debug mode, printing detailed processing steps without executing them.
   - `--restart`: Scans output files and suggests parameters to resume processing based on the initial backup.
   
   ### Examples
+  To simulataneously make Parameter file, and generate tables with current parameters:
+  `python Astarion.py --tz_params --MakeTables`
   
   To process tables with current parameters:
   `python Astarion.py --MakeTables`
@@ -286,7 +290,8 @@ bash
   
   ## Notes
   - **File Not Found**: The script expects a `Params.dat` file in the working directory or specified path. Ensure this file exists before running. Follow the expected naming conventions for parameters found in StellarAges"
-  - **Resource Limitations**: Generating these likelihood tables and running many subprocesses may consume significant system resources. Monitor system performance and adjust the `max_terminals` setting if necessary.
+  - **Resource Limitations**: Generating these likelihood tables and running many subprocesses will consume significant system resources. Please monitor system performance and adjust the `max_terminals` setting if necessary.
+  - **Generating Params.dat Assumptions**: There are currently hardcoded default parameters specific to only my system. To set your own defaults, please edit `def __init__` within the `Param_generator` class. 
 
 </details>
 
