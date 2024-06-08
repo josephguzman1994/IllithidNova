@@ -6,6 +6,73 @@ import argparse
 import sys
 import time
 
+class Param_Generator:
+    def __init__(self, perfectsampleav=False, genlikeliavtildes=None):
+        self.params = {
+            'isodir': '/home/joe/Research/Isochrones_Parsec/',
+            'datasource': 'HST',
+            'usegaiaplx': False,
+            'genlikeliages': '6.50, 6.60, 6.70, 6.80, 6.90, 7.00, 7.10, 7.20, 7.30, 7.40, 7.50, 7.60, 7.80, 8.00, 8.20, 8.40, 8.60, 8.80, 9.00, 9.20, 9.40, 9.60, 9.80, 10.00',
+            'genlikelizs': '-0.40, -0.20, 0.00, 0.20',
+            'genlikelimmin': 4.0,
+            'genlikeliavtildes': genlikeliavtildes if genlikeliavtildes is not None else '0.0',
+            'unctype': 'sigma',
+            'perfectsampleav': perfectsampleav
+        }
+        self.instrument_options = ['ACS_HRC', 'ACS_WFC', 'WFC3_UVIS', 'WFPC2']
+    
+    def get_user_input(self, param_name, default_value=None, base_dir=None, options=None):
+        while True:
+            if options and param_name == 'instrument':
+                print(f"Available options for {param_name}: {', '.join(options)}")
+                user_input = input(f"Enter value for {param_name}: ").strip().upper()
+                if user_input not in options:
+                    print(f"Error: Invalid {param_name}. Please choose from the available options.")
+                    continue
+            elif default_value is not None:
+                user_input = input(f"Enter value for {param_name} (default: {default_value}): ")
+                user_input = user_input.strip() if user_input else default_value
+            else:
+                user_input = input(f"Enter value for {param_name}: ").strip()
+
+            if param_name == 'errdir':
+                if not os.path.isdir(user_input):
+                    print(f"Error: The directory '{user_input}' does not exist.")
+                    continue
+                else:
+                    return user_input
+            elif param_name == 'errfile':
+                full_path = os.path.join(base_dir, user_input)
+                if not os.path.isfile(full_path):
+                    print(f"Error: The file '{user_input}' does not exist in the directory '{base_dir}'.")
+                    continue
+                else:
+                    return user_input
+
+            return user_input
+        
+    def generate_params(self, tza_mode=False):
+        if tza_mode:
+            self.params['perfectsampleav'] = True
+            self.params['genlikeliavtildes'] = self.get_user_input('genlikeliavtildes')
+
+        self.params['errdir'] = self.get_user_input('errdir')
+        user_input_params = ['errfile', 'instrument', 'distancemodulus', 'table_bluemax', 'table_redmax', 'mags']
+        for param in user_input_params:
+            if param == 'instrument':
+                self.params[param] = self.get_user_input(param, options=self.instrument_options).upper()
+            elif param == 'errfile':
+                self.params[param] = self.get_user_input(param, base_dir=self.params['errdir'])
+            else:
+                self.params[param] = self.get_user_input(param)
+
+        param_order = ['isodir', 'errdir', 'errfile', 'datasource', 'usegaiaplx', 'instrument', 'distancemodulus', 'genlikeliages', 'genlikelizs', 'genlikelimmin', 'genlikeliavtildes', 'table_bluemax', 'table_redmax', 'mags', 'unctype', 'perfectsampleav']
+        with open('Params.dat', 'w') as file:
+            for key in param_order:
+                file.write(f"{key} = {self.params[key]}\n")
+
+        print("Params.dat file has been created with the specified parameters.")
+
 class StellarProcess:
     def __init__(self, params_file=None, output_dir=None, debug=False):
         # If no params file is provided, default to assume one is in the working directory
@@ -91,83 +158,83 @@ class StellarProcess:
 
     def process_tables(self):
         try:
+            # Read the 'perfectsampleav' parameter from Params.dat
             perfect_sample_av = self.read_params().get('perfectsampleav', 'False') == 'True'
+
+            # Determine the filename based on 'perfectsampleav'
             self.initial_params_filename = "Params.dat.Initial_TZA_tables" if perfect_sample_av else "Params.dat.Initial_TZ_tables"
+
+            # Backup the Params.dat file before any processing
             shutil.copy(self.params_file, os.path.join(os.path.dirname(self.params_file), self.initial_params_filename))
 
             ages = list(map(float, self.base_params['genlikeliages'].split(',')))
             zs = list(map(float, self.base_params['genlikelizs'].split(',')))
             avtildes = list(map(float, self.base_params['genlikeliavtildes'].split(',')))
 
+            # Split ages based on minimum mass criteria
             age_ranges = {
                 4.0: [age for age in ages if age <= 7.80],
                 2.0: [age for age in ages if 7.80 < age <= 8.60],
                 0.5: [age for age in ages if age > 8.60]
             }
 
-            desired_terminals = 6
-            total_combinations = sum(len(self.generate_combinations(age_range, zs, avtildes)) for age_range in age_ranges.values())
-            terminal_combinations = []
-
-            # Generate and distribute combinations for each mass range
+            # Calculate total combinations and determine chunks per category
+            total_combinations = 0
+            combinations_per_category = {}
             for min_mass, age_range in age_ranges.items():
                 combinations = self.generate_combinations(age_range, zs, avtildes)
+                combinations_per_category[min_mass] = combinations
+                total_combinations += len(combinations)
+
+            # Aim for a set amount of terminals
+            desired_terminals = 4
+            chunks_per_category = {}
+            for min_mass, combinations in combinations_per_category.items():
                 proportion = len(combinations) / total_combinations
-                num_terminals_for_range = max(1, round(proportion * desired_terminals))
+                chunks_per_category[min_mass] = max(1, round(proportion * desired_terminals))
 
-                # Adjust the number of terminals if the total exceeds the desired count
-                if sum(num_terminals_for_range for _, _ in terminal_combinations) + num_terminals_for_range > desired_terminals:
-                    num_terminals_for_range = max(1, desired_terminals - sum(num_terminals_for_range for _, _ in terminal_combinations))
+            terminal_count = 0
+            max_terminals = 10  # Set a safe limit for open terminals
 
-                num_combinations_per_terminal = len(combinations) // num_terminals_for_range
-                extra_combinations = len(combinations) % num_terminals_for_range
+            # Process each category with calculated chunks
+            for min_mass, combinations in combinations_per_category.items():
+                num_chunks = chunks_per_category[min_mass]
+                chunks = [combinations[i::num_chunks] for i in range(num_chunks)]
 
-                current_index = 0
-                for i in range(num_terminals_for_range):
-                    if i < extra_combinations:
-                        end_index = current_index + num_combinations_per_terminal + 1
+                for index, chunk in enumerate(chunks):
+                    debug_info = f"Chunk {index + 1} for Min Mass {min_mass}:\n"
+                    ages_set = set()
+                    zs_set = set()
+                    avtildes_set = set()
+
+                    for age, z, avtilde in chunk:
+                        ages_set.add(age)
+                        zs_set.add(z)
+                        avtildes_set.add(avtilde)
+                        debug_info += f"Age: {age}, Z: {z}, Avtilde: {avtilde}, Min Mass: {min_mass}\n"
+
+                    # Prepare parameters for writing to params.dat
+                    chunk_params = {
+                        'genlikeliages': ', '.join(map(str, sorted(ages_set))),
+                        'genlikelizs': ', '.join(map(str, sorted(zs_set))),
+                        'genlikeliavtildes': ', '.join(map(str, sorted(avtildes_set))),
+                        'genlikelimmin': str(min_mass)
+                    }
+
+                    # Write the collected parameters for the entire chunk to params.dat
+                    self.write_params(chunk_params)
+
+                    if self.debug:
+                        self.run_subprocess(debug_info, debug=True)
                     else:
-                        end_index = current_index + num_combinations_per_terminal
+                        command = f"python3 /home/joe/Research/StellarAges/StellarAges.py --Generatelikelihood"
+                        self.run_subprocess(command)
+                        time.sleep(6)  # Time delay to allow the command to start processing before writing to the next file.
+                        terminal_count += 1
 
-                    # Ensure unique combinations by adjusting the end_index if necessary
-                    if i < num_terminals_for_range - 1:  # Not the last terminal
-                        # Move the end_index back if it's the start of a new age
-                        while end_index < len(combinations) and combinations[end_index][0] == combinations[end_index - 1][0]:
-                            end_index -= 1
-
-                    terminal_combinations.append((combinations[current_index:end_index], min_mass))
-                    current_index = end_index
-
-            # Process each terminal's combinations
-            for i, (combinations, min_mass) in enumerate(terminal_combinations):
-                unique_ages = sorted(set(age for age, _, _ in combinations))
-                unique_zs = sorted(set(z for _, z, _ in combinations))
-                unique_avtildes = sorted(set(av for _, _, av in combinations))
-
-                chunk_params = {
-                    'genlikeliages': ', '.join(map(str, unique_ages)),
-                    'genlikelizs': ', '.join(map(str, unique_zs)),
-                    'genlikeliavtildes': ', '.join(map(str, unique_avtildes)),
-                    'genlikelimmin': f"{min_mass:.1f}"
-                }
-
-                self.write_params(chunk_params)
-
-                command = f"python3 /home/joe/Research/StellarAges/StellarAges.py --Generatelikelihood"
-                debug_info = f"Terminal {i+1}:\n" \
-                            f"genlikelimmin = {min_mass}\n" \
-                            f"genlikeliages = {chunk_params['genlikeliages']}\n" \
-                            f"genlikelizs = {chunk_params['genlikelizs']}\n" \
-                            f"genlikeliavtildes = {chunk_params['genlikeliavtildes']}\n" \
-                            f"Combinations: {len(combinations)}"
-
-                if self.debug:
-                    print(debug_info)
-                    self.run_subprocess(f"echo '{debug_info}'", debug=False)  # Open terminal and display debug info
-                else:
-                    self.run_subprocess(command)
-                    time.sleep(6)
-
+                    if terminal_count >= max_terminals:
+                        input("Press Enter to continue with the next set of terminals...")
+                    print("Successfully executing tables in new terminal")
         except Exception as e:
             print(f"An error occurred in process_tables: {e}")
         print("Exiting process_tables")
@@ -196,17 +263,29 @@ class ProcessManager:
 
 def main():
     parser = argparse.ArgumentParser(description="Process Stellar Ages")
+    parser.add_argument("--tz_params", action="store_true", help="Generate Params.dat file using tz settings.")
+    parser.add_argument("--tza_params", action="store_true", help="Generate Params.dat file using tza settings.")
     parser.add_argument("--MakeTables", action="store_true", help="Process tz, or tza tables")
     parser.add_argument("--debug", action="store_true", help="Run in debug mode to print out processing steps without executing")
     parser.add_argument("--restart", action="store_true", help="Scan output files and suggest parameters to resume processing")
     args = parser.parse_args()
 
-    output_dir = os.getcwd()
-    stellar_process = StellarProcess(params_file =None, output_dir=output_dir, debug=args.debug)
-    process_manager = ProcessManager(stellar_process)
+    #output_dir = os.getcwd()
+    #stellar_process = StellarProcess(params_file =None, output_dir=output_dir, debug=args.debug)
+    #process_manager = ProcessManager(stellar_process)
+
+    if args.tz_params:
+        pg = Param_Generator()
+        pg.generate_params()
+    elif args.tza_params:
+        pg = Param_Generator(perfectsampleav=True)
+        pg.generate_params(tza_mode=True)
 
     
     if args.restart:
+        output_dir = os.getcwd()
+        stellar_process = StellarProcess(params_file =None, output_dir=output_dir, debug=args.debug)
+        process_manager = ProcessManager(stellar_process)
         # Read the 'perfectsampleav' parameter from Params.dat
         perfect_sample_av = stellar_process.read_params().get('perfectsampleav', 'False') == 'True'
 
@@ -267,6 +346,9 @@ def main():
 
     try:
         if args.MakeTables:
+            output_dir = os.getcwd()
+            stellar_process = StellarProcess(params_file =None, output_dir=output_dir, debug=args.debug)
+            process_manager = ProcessManager(stellar_process)
             print("MakeTables argument detected, processing tables...")
             stellar_process.process_tables()
             print(f"Initial parameter configuration saved to: {os.path.join(os.path.dirname(stellar_process.params_file), stellar_process.initial_params_filename)}\n")
