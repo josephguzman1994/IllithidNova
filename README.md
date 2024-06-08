@@ -187,7 +187,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   </div>
 </div>
 
-`Halsin.py`: Is a python script that can query and download data products from the Mikulski Archive for Space Telescopes (MAST). Specifically formatted to query for HST science images and deep exposures. It allows users to specify a target, search radius, and other parameters to find and download relevant astronomical data files, intended for use with DOLPHOT.
+`Halsin.py` Is a python script that can query and download data products from the Mikulski Archive for Space Telescopes (MAST). Specifically formatted to query for HST science images and deep exposures. It allows users to specify a target, search radius, and other parameters to find and download relevant astronomical data files, intended for use with DOLPHOT.
 
 <details>
   <summary>Click to Expand!</summary>
@@ -210,10 +210,10 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   ## Examples
   1. **Downloading HST MAST Data**
   bash ```python3 Halsin.py --hst_download```
-  This command will prompt the user to input a target name, then will proceed to automatically query MAST for relevant HST data products.
+  This command will prompt the user to input a target name, then will proceed to automatically query MAST for relevant HST data products. You will be presented with all the datasets which meet the search criteria, then upon selection will download the relevant data products for you automatically.
   
   ## Notes
-  - Ensure that your internet connection is stable when downloading data from CMD 3.7
+  - Ensure that your internet connection is stable when downloading data from MAST
   - For downloading HST MAST data, there are several key assumptions which are currently hard-coded into the class `HST_MAST_Query`. The search filters are: datasets within 1 arcminute of the target, an exposure time greater than or equal to 1000 seconds (necessary for Stellar Ages), return Science images only, and only keep ACS, WFC3, WFPC1 and WFPC2 instruments. Then after selecting the datasets to download, it is currently hardcoded to only download calibrated data products, i.e. drz, drc, flc or flt image files (necessary for DOLPHOT).
 
 </details>
