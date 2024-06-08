@@ -7,12 +7,12 @@
     <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/ece65425-b8b6-420c-9d90-41e9775f14fa" alt="IllithidNova" width="300">
   </div>
 </div>
-IllithidNova is a place with multiple python tools for astronomers and astrophysicists. Currently contains Karlach.py which automates DOLPHOT processing, Gale.py which automates queries to CMD 3.7 to download and unpack isochrones, and Astarion.py which automates processes for the code StellarAges.
+IllithidNova is a place with multiple python tools for astronomers and astrophysicists. Currently contains Karlach.py which automates DOLPHOT processing, Gale.py which automates queries to CMD 3.7 and the HST MAST portal, and Astarion.py which automates processes for the code StellarAges.
 
 ## Contents
 
 - [Karlach.py - DOLPHOT Automation Tool](#karlachpy---dolphot-automation-tool)
-- [Gale.py - CMD 3.7 Isochrone Retrieval Tool](#galepy---cmd-37-isochrone-retrieval-tool)
+- [Gale.py - CMD 3.7 Isochrone Retrieval Tool, HST MAST Data Retrieval Tool](#galepy---cmd-37-isochrone-retrieval-tool-and-hst-mast-data-retrieval-tool)
 - [Astarion.py - Stellar Ages Process Automation](#astarionpy---stellarages-process-automation)
 - [Installation](#installation-for-karlach-and-gale)
 - [License](#license)
@@ -112,12 +112,12 @@ bash
 
 <div style="display: flex; align-items: center;">
   <div style="flex-grow: 1;">
-    <h1 style="display: inline;">Gale.py - CMD 3.7 Isochrone Retrieval Tool</h1>
+    <h1 style="display: inline;">Gale.py - CMD 3.7 Isochrone Retrieval Tool and HST MAST Data Retrieval Tool</h1>
     <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/6deed2a1-8f87-4058-8996-9fcb145bbd54" alt="CMD 3.7 Tool" style="width: 125px;">
   </div>
 </div>
 
-**Gale.py** is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.7 service hosted at `stev.oapd.inaf.it`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems. It is currently optimized to use the PARSEC and COLIBRI models to fetch photometric system data, which it then unpacks into structured `.npy` files for further analysis.
+**Gale.py** is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.7 service hosted at `stev.oapd.inaf.it`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems. It is currently optimized to use the PARSEC and COLIBRI models to fetch photometric system data, which it then unpacks into structured `.npy` files for further analysis. Gale.py can also query and download data products from the Mikulski Archive for Space Telescopes (MAST). It allows users to specify a target, search radius, and other parameters to find and download relevant astronomical data files, intended for use with DOLPHOT.
 
 ## Key Features
 - **Download Isochrone Data**: Downloads data directly from the CMD 3.7 interface.
@@ -129,6 +129,9 @@ bash
 - **Flexible Directory Handling**: Users can specify the output directory for unpacked files or use the default working directory.
 - **Plotting Isochrones**: Provides functionality to plot isochrones by age or metallicity, and single isochrone diagrams.
 - **Maximum Isochrone Age Check**: Allows users to check the maximum isochrone age against table limits to ensure data integrity.
+- **Query MAST for specific astronomical targets.**
+  - **Filter results by instruments, exposure time, and product type.**
+  - **Download selected data products automatically.**
 
 ## Configuration
 
@@ -144,10 +147,14 @@ bash
 - BeautifulSoup
 - numpy
 - matplotlib
+- astroquery
+- astropy
+- requests
 
 ## Notes
-- Ensure that your internet connection is stable when downloading data from CMD 3.7.
-- The script currently does not handle gzip-compressed files. If you need to download large datasets, consider modifying the script (under `form_data`) to handle gzip compression.
+- Ensure that your internet connection is stable when downloading data from CMD 3.7 and or MAST.
+- For downloading isochrones, the script currently does not handle gzip-compressed files. If you need to download large datasets, consider modifying the script (under `form_data`) to handle gzip compression.
+- For downloading HST MAST data, there are several key assumptions which are currently hard-coded into the class `HST_MAST_Query`. The search filters are: datasets within 1 arcminute of the target, an exposure time greater than or equal to 1000 seconds (necessary for Stellar Ages), return Science images only, and only keep ACS, WFC3, WFPC1 and WFPC2 instruments. Then after selecting the datasets to download, it is currently hardcoded to only download calibrated data products: drz, drc, flc or flt image files (necessary for DOLPHOT).
 
 ## Usage
 To use `Gale.py`, you can utilize the following command-line arguments:
@@ -159,13 +166,16 @@ To use `Gale.py`, you can utilize the following command-line arguments:
 - `--plot_z_iso`: Reads in unpacked .npy files to  plot isochrones for varying metallicities and a fixed age.
 - `--plot_single_iso`: Reads in unpacked .npy file to plot a single isochrone for a given age and metallicity.
 - `--MaxIsoAge`: Check the maximum isochrone age against table limits.
+- `--hst_download`: Query MAST to download HST data products for specified targets. The script will download the selected files into a `downloads` directory within the same directory where the script is run.
 
 ### Examples
 1. **Downloading and Unpacking Data**
 bash ```python3 Gale.py --download_iso --UnpackIsoSet```
 This command downloads the isochrone data based on user inputs and immediately unpacks it into the current directory. Utilizes environment variables to minimize user input
-
-2. **Unpacking Existing Data and Choosing Output Directory**
+2. **Downloading HST MAST Data**
+bash ```python3 Gale.py --hst_download```
+This command will prompt the user to input a target name, then will proceed to automatically query MAST for relevant HST data products.  
+3. **Unpacking Existing Data and Choosing Output Directory**
 bash ```python3 Gale.py --UnpackIsoSet --isodir /path/to/directory```
 This uses an existing `.set` file to unpack the data in a specified directory. If you ran ```--download_iso``` in the same terminal session, it will use the environment variables to automatically find the output files. Otherwise, you will be prompted manually define the necessary files with terminal input.
 
