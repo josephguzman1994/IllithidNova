@@ -6,7 +6,9 @@ astroquery==0.4.7.dev9008
 scipy==1.8.0
 stwcs==1.7.2
 
-# Additional unique dependencies from Gale.py
+# Additional unique dependencies for Gale.py
 httpx==0.27.0
 beautifulsoup4==4.10.0
+
+# Additional unique dependencies for Halsin.py
 requests==2.25.1
