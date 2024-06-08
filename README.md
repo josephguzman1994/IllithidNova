@@ -7,7 +7,7 @@
     <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/ece65425-b8b6-420c-9d90-41e9775f14fa" alt="IllithidNova" width="300">
   </div>
 </div>
-IllithidNova is a place with multiple python tools for astronomers and astrophysicists. Currently contains Karlach.py which automates DOLPHOT processing, Gale.py which automates queries to CMD 3.7, Halsin.py which automates download queries to the MAST portal, and Astarion.py which automates processes for the code StellarAges.
+IllithidNova is a place with multiple python tools for astronomers and astrophysicists. At the moment, it serves as a place for all the tools I have built to accomplish my specific research tasks, but perhaps you may find something of use for your projects. This repo currently contains Karlach.py which automates DOLPHOT processing, Gale.py which automates queries to CMD 3.7, Halsin.py which automates download queries to the MAST portal, and Astarion.py which automates processes for the code StellarAges.
 
 ## Contents
 
