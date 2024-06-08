@@ -193,7 +193,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   <summary>Click to Expand!</summary>
 
   ## Key Features
-  - **Query MAST for specific astronomical targets.**
+  - **Query MAST for HST data surrounding specified astronomical targets.**
     - Filter results by instruments, exposure time, and product type.
     - Download selected data products automatically.
   
