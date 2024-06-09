@@ -110,8 +110,8 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   ## Notes
   - Executing ```--make``` assumes you have dolphot2.0 installed, as well as the necessary PSF and PAM files for your images. Verify that your 'Makefile' is in your /dolphot2.0/ directory.
   - In case you are unaware, executing some of the dolphot commands assumes you are in the dolphot2.0 directory. Therefore, you may want to edit your .bashrc file (or equivalent) to execute these commands elsewhere.
-  - At the moment, calcsky defaults to these values:  15 35 -128 2.25 2.00, which is only relevant for certain photometric systems. If you would like to use other values, activate ```--calcsky_values``` when executing the dolphot process.
-  - Testing of Karlach.py ```--dolphot``` has thus far been completed with some ACS photometric systems. As a result, bugs may persist in other systems which will likely be worked out sooner, rather than later.
+  - At the moment, calcsky defaults to suggested values for each HST instrument (e.g. ACS_HRC defaults to 15, 35, -128, 2.25, 2.00, WFPC2 defaults to 10, 25, -50, 2.25, 2.00, etc.), JWST instruments have not been inspected or explicitly set. If you know you might like to use custom values, or would like to inspect the values used before executing, additionally activate ```--calcsky_values``` when executing ```--dolphot``` in the command line.
+  - Testing of Karlach.py ```--dolphot``` has thus far been completed with some ACS and WFC3 photometric systems. As a result, bugs may persist in other systems which will likely be worked out sooner, rather than later.
   - Currently ```--save_data``` assumes a default distance from the SN (or object of interest) of 50, 100, and 150 pc. Therefore ```--save_data``` generates 3 different sets of data simultaneously as the default. If you would like to use a different set of distances for the distance mask, please define in your config.ini file, 'proximity_threshold_pc = ' followed by your comma separated values of interest.
 </details>
 
