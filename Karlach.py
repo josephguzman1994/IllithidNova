@@ -199,6 +199,17 @@ class TerminalCommandExecutor:
         else:
             file_patterns = [os.path.join(working_directory, '*chip1*'), os.path.join(working_directory, '*chip2*')]  # chip1 or chip2, default case for other systems
 
+        # Define default calcsky values based on system_name
+        if not calcsky_values:
+            if system_name in ['ACS_HRC', 'ACS_WFC', 'WFC3_UVIS']:
+                calcsky_values = [15, 35, -128, 2.25, 2.00]
+            elif system_name == 'WFC3_IR':
+                calcsky_values = [10, 25, -64, 2.25, 2.00]
+            elif system_name == 'WFPC2':
+                calcsky_values = [10, 25, -50, 2.25, 2.00]
+            else:
+                calcsky_values = [15, 35, -128, 2.25, 2.00]
+
         try:
             for pattern in file_patterns:
                 chip_files = glob.glob(pattern)
@@ -208,11 +219,7 @@ class TerminalCommandExecutor:
                         for file in chip_files:
                             filename = os.path.basename(file).split('.')[0]
                             # Can change default calcsky values through --calcsky_values, allowing manual input. 
-                            # Should consider updating to automatically know values for each system
-                            if calcsky_values:
-                                command = f'calcsky "{filename}" {" ".join(str(val) for val in calcsky_values)} >> {output_log}'
-                            else:
-                                command = f'calcsky "{filename}" 15 35 -128 2.25 2.00 >> {output_log}'
+                            command = f'calcsky "{filename}" {" ".join(str(val) for val in calcsky_values)} >> {output_log}'
                             subprocess.run(command, shell=True, stdout=logfile, stderr=subprocess.PIPE)
 
             print(f"All calcsky commands executed successfully! Combined output log: {output_log}\n")
@@ -689,9 +696,9 @@ class PlotManager:
         # Save the data to a NumPy binary file for programmatic access
         np.save(file_name_npy, data_array)
 
-        print(f"\nMagnitudes and Uncertainties saved to {file_name_txt} and {file_name_npy}")
-        print(f"Shape of mag_unc file (number of stars, columns):",np.shape(data_array))
-        print(f"Full dataset saved to {full_file_name_txt} and {full_file_name_npy}\n")
+        print(f"Magnitudes and Uncertainties saved to {file_name_txt} and {file_name_npy}\n")
+        print(f"Full dataset saved to {full_file_name_txt} and {full_file_name_npy}")
+        print(f"Shape of data file (number of stars, columns):",np.shape(data_array))
 
     #Define each plot individually, allows greater control, ease of debugging, modularity. Con is tracking down all the proper
     #Things to pass to each plot.
@@ -1122,17 +1129,26 @@ def main():
         # Step 3: Run Calcsky, allow the user to alter the default values by using --calcsky_values
         if continue_prompt("Proceed to run Calcsky? (y/n): "):
             system_name = config['DOLPHOT_CONFIG'].get('system_name')
-            calcsky_values = [15, 35, -128, 2.25, 2.00]  # Default values for ACS and WFC3.
-           
+
+            # Define default calcsky values based on system_name
+            if system_name in ['ACS_HRC', 'ACS_WFC', 'WFC3_UVIS']:
+                calcsky_values = [15, 35, -128, 2.25, 2.00]
+            elif system_name == 'WFC3_IR':
+                calcsky_values = [10, 25, -64, 2.25, 2.00]
+            elif system_name == 'WFPC2':
+                calcsky_values = [10, 25, -50, 2.25, 2.00]
+            else:
+                calcsky_values = [15, 35, -128, 2.25, 2.00]
+
+            # Prompt for custom calcsky values if the flag is set
             if args.calcsky_values:
-                # If you want to change the default (e.g. to use WFPC2), activate --calcsky_values for manual input
-                print("Enter custom calcsky values (15 35 -128 2.25 2.00 are defaults):")
+                print(f"Enter custom calcsky values ({' '.join(map(str, calcsky_values))} are defaults):")
                 try:
                     calcsky_values = [float(input(f"Enter value {i + 1}: ")) for i in range(5)]
                 except ValueError:
                     print("Invalid input: Please enter numeric values.")
                     return  # Exit the function or ask for the input again as appropriate
-            
+
             executor.execute_calcsky_commands(working_directory, obj_name, system_name, calcsky_values)
 
         # Step 4: Read-in processed image files, generate header key info file
