@@ -20,6 +20,11 @@ class Param_Generator:
             'perfectsampleav': perfectsampleav
         }
         self.instrument_options = ['ACS_HRC', 'ACS_WFC', 'WFC3_UVIS', 'WFPC2']
+
+    def filter_ages(self, max_age):
+        all_ages = list(map(float, self.params['genlikeliages'].split(', ')))
+        filtered_ages = [age for age in all_ages if age <= max_age]
+        return ', '.join(f"{age:.2f}" for age in filtered_ages)  # Format ages with two decimal places
     
     def get_user_input(self, param_name, default_value=None, base_dir=None, options=None):
         while True:
@@ -55,6 +60,9 @@ class Param_Generator:
         if tza_mode:
             self.params['perfectsampleav'] = True
             self.params['genlikeliavtildes'] = self.get_user_input('genlikeliavtildes')
+
+        max_age = float(input("Enter the maximum age to consider: "))
+        self.params['genlikeliages'] = self.filter_ages(max_age)
 
         self.params['errdir'] = self.get_user_input('errdir')
         user_input_params = ['errfile', 'instrument', 'distancemodulus', 'table_bluemax', 'table_redmax', 'mags']
