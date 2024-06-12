@@ -7,14 +7,13 @@ import urllib.parse
 from astroquery.mast import Observations
 from astroquery.mast.missions import MastMissions
 import astropy.units as u
-from astropy.coordinates import SkyCoord
 import logging
 
 # Set up basic configuration for logging, only inform users of warnings
 logging.basicConfig(level=logging.WARNING)
 
 # Setup slightly more verbose configuration for logging
-# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+#logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class HST_MAST_Query:
     def __init__(self):
@@ -69,10 +68,11 @@ class HST_MAST_Query:
                     print("No 'products' key in response. Check API response structure.")
             else:
                 print(f"Failed to list products for dataset {dataset_id}. Status code: {response.status_code}")
-
+        
 def main():
     parser = argparse.ArgumentParser(description="Query and download data from MAST.")
     parser.add_argument('--hst_download', action='store_true', help='Activate download from HST MAST')
+    parser.add_argument('--check_targets', action='store_true', help='Check multiple targets for specific criteria')
     args = parser.parse_args()
 
     if args.hst_download:
@@ -90,8 +90,38 @@ def main():
             query.download_selected_products(products, selected_indices)
         else:
             print("No products available for download.")
+    
+    if args.check_targets:
+        query = HST_MAST_Query()
+        target_input = input("Enter the target names for automatic filtering separated by commas: ")
+        targets = [target.strip() for target in target_input.split(',')]
+        all_qualifying_datasets = {}
+        count_targets_with_two_filters = 0
+        for target in targets:
+            products = query.query_and_list_products(target)
+            if products:
+                dataset_details = []
+                for product in products:
+                    detail = f"{product['sci_data_set_name']}: Filter - {product['sci_spec_1234']}, Exposure Time - {product['sci_actual_duration']}"
+                    dataset_details.append(detail)
+                if len(set(detail.split(": Filter - ")[1].split(", Exposure Time - ")[0] for detail in dataset_details)) >= 2:
+                    count_targets_with_two_filters += 1
+                all_qualifying_datasets[target] = dataset_details
+            else:
+                print(f"No products available that meet the criteria for {target}.")
+
+        # Write to a text file
+        with open('qualifying_datasets.txt', 'w') as file:
+            for target, details in all_qualifying_datasets.items():
+                file.write(f"Target: {target}\n")
+                for detail in details:
+                    file.write(f"  {detail}\n")
+                file.write("\n")  # Newline for readability between targets
+            print("Qualifying datasets have been written to 'qualifying_datasets.txt'")
+
+        print(f"Number of targets with at least two unique filter datasets: {count_targets_with_two_filters}")
     else:
-        print("Usage: python MAST_query.py --hst_download")
+        print("Usage: python Halsin.py --hst_download or --check_targets")
 
 if __name__ == "__main__":
     main()
