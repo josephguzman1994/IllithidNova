@@ -206,11 +206,15 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   ## Usage
   To use `Halsin.py`, you can utilize the following command-line arguments:
   - `--hst_download`: Query MAST to download HST data products for specified targets. The script will download the selected files into a `downloads` directory within the same directory where the script is run.
+  - `--check_targets`: Input a list of targets to query into MAST, it will return all the targets which have at least two unique filters, as well as some relevant dataset information for future use. 
   
   ## Examples
   1. **Downloading HST MAST Data**
   bash ```python3 Halsin.py --hst_download```
-  This command will prompt the user to input a target name, then will proceed to automatically query MAST for relevant HST data products. You will be presented with all the datasets which meet the search criteria, then upon selection will download the relevant data products for you automatically.
+  This command will prompt the user to input a target name, then will proceed to automatically query MAST for relevant HST data products. You will be presented with all the datasets which meet the search criteria, then upon selection, the script will download the relevant data products for you automatically.
+  2. **Query List of Objects for Datasets**
+  bash ```python3 Halsin.py --check_targets```
+  You will then be prompted to insert a comma-separated list of targets into the terminal. The script will then query mast with the same assumptions as `--hst_download`, but only note the datasets which have at least two unique filters to a separate text file.
   
   ## Notes
   - Ensure that your internet connection is stable when downloading data from MAST
