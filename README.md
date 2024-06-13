@@ -63,10 +63,10 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   
   - **[DOLPHOT_CONFIG]**: Contains global settings for the DOLPHOT run, including file paths, object names, and reference files.
     - **system_name**: Define the photometric system used (e.g., ACS_WFC, WFC3_UVIS).
-    - **obj_name**: Specify the name of the astronomical object being analyzed. The code will attempt to query SIMBAD for relevant coordinates.
-    - **make_path**: Set the path to your DOLPHOT makefile directory.
+    - **obj_name**: Specify the name of the astronomical object being analyzed. The code will attempt to query SIMBAD for relevant coordinates. Relevant for dynamic file naming, as well as plotting and saving data.
+    - **make_path**: Set the path to your DOLPHOT MakeFile directory.
     - **distance**: in units of parsecs to the object of interest. Necessary for processing dolphot output, making distance mask, absolute magnitude plots, etc.
-    - **phot_file and ref_file**: Specify the names of the photometry and reference image files. These can be automatically filled in when executing `--phot` immediately after `--dolphot`.
+    - **phot_file and ref_file**: Specify the names of the photometry and reference image files. These can be automatically filled in for you when executing `--phot` immediately after `--dolphot`.
    
     - Below 'DOLPHOT_CONFIG', please define a section with keys and values for your chosen photometric system to generate the appropriate dolphot parameter file.
   
