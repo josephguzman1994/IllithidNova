@@ -15,6 +15,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
 - [Gale.py - CMD 3.7 Isochrone Retrieval Tool](#galepy---cmd-37-isochrone-retrieval-tool)
 - [Halsin.py - MAST Data Retrieval Tool](#halsinpy---mast-data-retrieval-tool)
 - [Astarion.py - Stellar Ages Process Automation](#astarionpy---stellarages-process-automation)
+- [Lae'zel.py - IllithidNova Linking Tool](#laezelpy---illithidnova-linking-tool)
 - [Installation](#installation-for-karlach-gale-and-halsin)
 - [License](#license)
 
@@ -302,14 +303,15 @@ bash
 <div style="display: flex; align-items: center;">
   <div style="flex-grow: 1;">
     <h1 style="display: inline;">Lae'zel.py - IllithidNova Linking Tool</h1>
-    <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/b32038f6-3533-4294-a9e5-01feb7e63a02" alt="Illithid Nova Tool" style="width: 125px;">
+    <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/ef21b62d-7802-4221-be48-8433e5644ff0" alt="Illithid Nova Tool" style="width: 100px;">
   </div>
 </div>
 
-`Laezel.py` is the final link in the chain. With all the tools described above, in theory, we can link them all together to accomplish my various tasks, capable of answering the question: "Which Massive Stars Explode?". `Laezel.py` a python script will handle organization, creating directories, moving into and out of directories, copying files, running commands from other scripts, and so on. It is meant to provide a smooth pipeline for my workflow. Therefore, the script will ideally use all of the scripts above in a user-friendly way.
+`Laezel.py` is the final link in the chain. With all the tools described above, in theory, we can link them all together to accomplish my various tasks, capable of answering the question: "Which Massive Stars Explode?". `Laezel.py` is a python script intended to handle organization, directory and file management, running commands from other scripts and so on. It is meant to provide a smooth pipeline for my workflow. Therefore, the script will ideally use all of the scripts above in a user-friendly way.
 
 <details>
   <summary>Click to Expand!</summary>
+  
   ## Dependencies
   
   - Python 3.x
@@ -321,7 +323,7 @@ bash
   e.g. bash `python3 Laezel.py`
 
  ## Notes
- Currently Lae'zel is only setup to interface with Halsin.py. Therefore it will do some directory and file management then execute `--hst_download`, which follows the rules above.
+ Currently Lae'zel is only setup to interface with Halsin.py. Therefore it will do some directory and file management, then execute `--hst_download`, which follows the rules in Halsin.py given above.
 
 </details>
 
