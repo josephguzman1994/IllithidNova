@@ -223,7 +223,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
 
 </details>
 
-## Installation (For Karlach, Gale and Halsin)
+## Installation (For Karlach, Gale, Halsin and Lae'zel)
 
 #### Clone the repository and install the required dependencies:
 
