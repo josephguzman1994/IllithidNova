@@ -50,12 +50,14 @@ class HST_MAST_Query:
             print(f"Failed to download {output_path}. Status code: {response.status_code}")
 
     def download_selected_products(self, products, selected_indices):
+        logging.debug(f"Received indices: {selected_indices}")
         patterns = [r'_flt\.fits$', r'_flc\.fits$', r'_drz\.fits$', r'_drc\.fits$']
         for index in selected_indices:
             product = products[index]
             dataset_id = product['sci_data_set_name']
             response = requests.get(f"{self.list_products_url}?dataset_ids={dataset_id}")
             if response.status_code == 200:
+                logging.debug("Starting download of selected products.")
                 product_list = response.json()
                 if 'products' in product_list:
                     for file_info in product_list['products']:
