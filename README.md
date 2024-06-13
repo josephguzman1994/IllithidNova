@@ -299,6 +299,31 @@ bash
 
 </details>
 
+<div style="display: flex; align-items: center;">
+  <div style="flex-grow: 1;">
+    <h1 style="display: inline;">Lae'zel.py - IllithidNova Linking Tool</h1>
+    <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/b32038f6-3533-4294-a9e5-01feb7e63a02" alt="Illithid Nova Tool" style="width: 125px;">
+  </div>
+</div>
+
+`Laezel.py` is the final link in the chain. With all the tools described above, in theory, we can link them all together to accomplish my various tasks, capable of answering the question: "Which Massive Stars Explode?". `Laezel.py` a python script will handle organization, creating directories, moving into and out of directories, copying files, running commands from other scripts, and so on. It is meant to provide a smooth pipeline for my workflow. Therefore, the script will ideally use all of the scripts above in a user-friendly way.
+
+<details>
+  <summary>Click to Expand!</summary>
+  ## Dependencies
+  
+  - Python 3.x
+  - `pexpect`
+  - Access to the internet
+
+  ### Examples:
+  Currently the way to initiate the process is to simply call it in any terminal. 
+  e.g. bash `python3 Laezel.py`
+
+ ## Notes
+ Currently Lae'zel is only setup to interface with Halsin.py. Therefore it will do some directory and file management then execute `--hst_download`, which follows the rules above.
+
+</details>
 
 ## Contributing
 
