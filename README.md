@@ -16,7 +16,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
 - [Halsin.py - MAST Data Retrieval Tool](#halsinpy---mast-data-retrieval-tool)
 - [Astarion.py - Stellar Ages Process Automation](#astarionpy---stellarages-process-automation)
 - [Lae'zel.py - IllithidNova Linking Tool](#laezelpy---illithidnova-linking-tool)
-- [Installation](#installation-for-karlach-gale-and-halsin)
+- [Installation](#installation-for-karlach-gale-halsin-and-laezel)
 - [License](#license)
 
 <div style="display: flex; align-items: center;">
@@ -223,18 +223,6 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
 
 </details>
 
-## Installation (For Karlach, Gale, Halsin and Lae'zel)
-
-#### Clone the repository and install the required dependencies:
-
-bash
-
-```git clone https://github.com/josephguzman1994/IllithidNova.git```
-
-```cd IllithidNova```
-
-```pip install -r requirements.txt```
-
 <div style="display: flex; align-items: center;">
   <div style="flex-grow: 1;">
     <h1 style="display: inline;">Astarion.py - StellarAges Process Automation</h1>
@@ -326,6 +314,18 @@ bash
  Currently Lae'zel is only setup to interface with Halsin.py. Therefore it will do some directory and file management, then execute `--hst_download`, which follows the rules in Halsin.py given above.
 
 </details>
+
+## Installation (For Karlach, Gale, Halsin and Lae'zel)
+
+#### Clone the repository and install the required dependencies:
+
+bash
+
+```git clone https://github.com/josephguzman1994/IllithidNova.git```
+
+```cd IllithidNova```
+
+```pip install -r requirements.txt```
 
 ## Contributing
 
