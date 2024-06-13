@@ -12,3 +12,6 @@ beautifulsoup4==4.10.0
 
 # Additional unique dependencies for Halsin.py
 requests==2.25.1
+
+# Additional unique dependencies for Laezel.py
+pexpect==4.8.0
