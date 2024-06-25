@@ -309,12 +309,12 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   ### Options
 
   - `--halsin`: This initiates the process for downloading data from MAST. It creates a desired directory, copies `Halsin.py` from this repo, initiates the `--hst_download` command from `Halsin.py`, presents you the data products that fit the filtered requirements, downloads the data for you, cleans up `Halsin.py`, then creates a copy of the `raw_data` and places it into a `working_directory` in preparation to run DOLPHOT with `Karlach.py`
-  - `--astarion`: This initiates the process for creating likelihood tables and running the inference found in `Stellar Ages`. It creates a desired directory, copies `Astarion.py` into this directory. Within this directory it creates various nested subfolders in preparation for all of the outputs from Stellar Ages. 
+  - `--astarion`: This initiates the process for creating likelihood tables and running the inference found in `Stellar Ages`. It creates a desired directory, copies `Astarion.py` into this directory. Within this directory, it creates various nested subfolders in preparation for all of the outputs from Stellar Ages. 
 
   ### Examples:
-  e.g. bash `python3 Laezel.py --Halsin.py`
+  e.g. bash `python3 Laezel.py --halsin`
 
-  `python3 Laezel.py --Astarion.py`
+  `python3 Laezel.py --astarion`
 
  ## Notes
  Given that Laezel uses commands intrinsic to `Halsin.py` and `Astarion.py`, it naturally assumes the notes of those scripts. e.g. Ensure you have a stable internet connection when using `Laezel.py` as this is necessary to download data from MAST.
