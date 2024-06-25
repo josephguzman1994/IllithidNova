@@ -295,7 +295,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   </div>
 </div>
 
-`Laezel.py` is the final link in the chain. With all the tools described above, in theory, we can link them all together to accomplish my various tasks, capable of answering the question: "Which Massive Stars Explode?". `Laezel.py` is a python script intended to handle organization, directory and file management, running commands from other scripts and so on. It is meant to provide a smooth pipeline for my workflow. Therefore, the script will interact with several of the scripts above in a smooth way.
+`Laezel.py` is the final link in the chain. With all the tools described above, in theory, we can link them all together to accomplish my various tasks, capable of answering the question: "Which Massive Stars Explode?". `Laezel.py` is a python script intended to handle organization, directory and file management, running commands from other scripts and so on. It is meant to provide a smooth pipeline for my workflow. Therefore, the script will interact with several of the scripts above.
 
 <details>
   <summary>Click to Expand!</summary>
