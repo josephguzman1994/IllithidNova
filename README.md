@@ -295,7 +295,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   </div>
 </div>
 
-`Laezel.py` is the final link in the chain. With all the tools described above, in theory, we can link them all together to accomplish my various tasks, capable of answering the question: "Which Massive Stars Explode?". `Laezel.py` is a python script intended to handle organization, directory and file management, running commands from other scripts and so on. It is meant to provide a smooth pipeline for my workflow. Therefore, the script will ideally use all of the scripts above in a user-friendly way.
+`Laezel.py` is the final link in the chain. With all the tools described above, in theory, we can link them all together to accomplish my various tasks, capable of answering the question: "Which Massive Stars Explode?". `Laezel.py` is a python script intended to handle organization, directory and file management, running commands from other scripts and so on. It is meant to provide a smooth pipeline for my workflow. Therefore, the script will interact with several of the scripts above in a smooth way.
 
 <details>
   <summary>Click to Expand!</summary>
@@ -307,11 +307,11 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   - Access to the internet
 
   ### Examples:
-  Currently the way to initiate the process is to simply call it in any terminal. 
-  e.g. bash `python3 Laezel.py`
+  Currently the way to initiate the process is to simply call it in any terminal. It will create a desired directory for you (you will need to change the pathing)
+  e.g. bash `python3 Laezel.py --Halsin.py`
 
  ## Notes
- Currently Lae'zel is only setup to interface with Halsin.py. Therefore it will do some directory and file management, then execute `--hst_download`, which follows the rules in Halsin.py given above.
+ Currently Lae'zel is only setup to interface with Halsin.py. Therefore it will do some directory and file management, then execute `--hst_download`, which follows the rules in `Halsin.py` given above.
 
 </details>
 
