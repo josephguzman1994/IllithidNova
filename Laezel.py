@@ -94,16 +94,70 @@ class HSTManagement:
             print(f"Cleanup, removed script 'Halsin.py' from {self.destination_script}")
             print("\nPlease proceed to edit config.ini to your specific object criterion. Then use Karlach.py to execute dolphot processes and plotting")
 
+class StellarAgesManagement:
+    def __init__(self, object_name):
+        self.base_path = f"/home/joe/Research/Likelihood/{object_name}"
+        self.source_file = "/home/joe/Research/IllithidNova/Astarion.py"
+
+    def create_astarion_subdirectories(self):
+        # Ensure the base directory exists before creating subdirectories
+        if not os.path.exists(self.base_path):
+            os.makedirs(self.base_path)
+            print(f"Base directory {self.base_path} created.")
+
+        subdirs = ["LikeliTables", "PerfectSamples", "SynthData", "RealData"]
+        for subdir in subdirs:
+            subdir_path = os.path.join(self.base_path, subdir)
+            if not os.path.exists(subdir_path):
+                os.makedirs(subdir_path)
+                print(f"Created subdirectory {subdir_path}")
+            else:
+                print(f"Subdirectory {subdir_path} already exists.")
+
+            # Create additional subfolders in "SynthData" and "RealData"
+            if subdir in ["SynthData", "RealData"]:
+                for subfolder in ["tz", "tza"]:
+                    subfolder_path = os.path.join(subdir_path, subfolder)
+                    if not os.path.exists(subfolder_path):
+                        os.makedirs(subfolder_path)
+                        print(f"Created subfolder {subfolder_path}")
+                    else:
+                        print(f"Subfolder {subfolder_path} already exists.")
+
+                    # Create further nested subfolders within "tz" and "tza"
+                    nested_subfolders = ["50pc_", "100pc_", "150pc_"]
+                    for nested_subfolder in nested_subfolders:
+                        nested_subfolder_path = os.path.join(subfolder_path, nested_subfolder)
+                        if not os.path.exists(nested_subfolder_path):
+                            os.makedirs(nested_subfolder_path)
+                            print(f"Created nested subfolder {nested_subfolder_path}")
+                        else:
+                            print(f"Nested subfolder {nested_subfolder_path} already exists.")
+
+        # Copy the Astarion.py script to the base_path
+        destination_file = os.path.join(self.base_path, "Astarion.py")
+        shutil.copy(self.source_file, destination_file)
+        print(f"Copied 'Astarion.py' to {destination_file}")
+
+        return True
+
 def main():
     parser = argparse.ArgumentParser(description="Manage HST data processing tasks.")
     parser.add_argument('--halsin', help="Execute Halsin operations", action='store_true')
+    parser.add_argument('--astarion', help="Setup Astarian directories", action='store_true')
     args = parser.parse_args()
 
+    manager = HSTManagement()
+    
     if args.halsin:
-        manager = HSTManagement()
         if manager.create_directory_and_copy_script():
             manager.execute_script()
             manager.manage_downloads()
+
+    if args.astarion:
+        stellar_manager = StellarAgesManagement(manager.object_name)
+        if not stellar_manager.create_astarion_subdirectories():
+            print("Failed to create Astarian subdirectories.")
 
 if __name__ == "__main__":
     main()
