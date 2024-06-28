@@ -15,3 +15,5 @@ requests==2.25.1
 
 # Additional unique dependencies for Laezel.py
 pexpect==4.8.0
+google-auth-oauthlib==1.2.0
+google-api-python-client==2.134.0
