@@ -4,6 +4,50 @@ import shutil
 import pexpect
 import time
 import argparse
+import tarfile
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+
+class GoogleDriveManager:
+    def __init__(self, creds_filename='/home/joe/Research/client_secret_998943080644-p9eg7qlqadif8124vc69i0vh7pmn1ega.apps.googleusercontent.com.json'):
+        self.creds_filename = creds_filename
+        self.service = self.authenticate_google_drive()
+
+    def authenticate_google_drive(self):
+        SCOPES = ['https://www.googleapis.com/auth/drive.file']
+        flow = InstalledAppFlow.from_client_secrets_file(self.creds_filename, SCOPES)
+        creds = flow.run_local_server(port=0)
+        service = build('drive', 'v3', credentials=creds)
+        return service
+    
+    def create_folder(self, folder_name, parent_id=None):
+        """Create a folder on Google Drive; return its ID."""
+        query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder'"
+        if parent_id:
+            query += f" and '{parent_id}' in parents"
+        results = self.service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+        folders = results.get('files', [])
+
+        if not folders:
+            file_metadata = {
+                'name': folder_name,
+                'mimeType': 'application/vnd.google-apps.folder'
+            }
+            if parent_id:
+                file_metadata['parents'] = [parent_id]
+            folder = self.service.files().create(body=file_metadata, fields='id').execute()
+            return folder['id']
+        else:
+            return folders[0]['id']
+
+    def upload_file_to_drive(self, filename, path_to_file, folder_id=None):
+        file_metadata = {'name': filename}
+        if folder_id:
+            file_metadata['parents'] = [folder_id]
+        media = MediaFileUpload(path_to_file, mimetype='application/gzip')
+        file = self.service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        print(f"File ID: {file['id']}")
 
 class HSTManagement:
     def __init__(self):
@@ -96,6 +140,7 @@ class HSTManagement:
 
 class StellarAgesManagement:
     def __init__(self, object_name):
+        self.object_name = object_name
         self.base_path = f"/home/joe/Research/Likelihood/{object_name}"
         self.source_file = "/home/joe/Research/IllithidNova/Astarion.py"
 
@@ -141,14 +186,30 @@ class StellarAgesManagement:
 
         return True
 
+    def backup_astarion(self, drive_manager=None):
+        backup_file = os.path.join(self.base_path, f"{self.object_name}_backup.tar.gz")
+        with tarfile.open(backup_file, "w:gz") as tar:
+            tar.add(self.base_path, arcname=os.path.basename(self.base_path))
+        print(f"Backup created at {backup_file}")
+        if drive_manager:
+            # Use the specific folder ID for the 'Likelihood' folder
+            likelihood_folder_id = '1N6MHfadLU3K-CShmqFLpjy3ECRSoaG_k'
+            # Create a new directory named after the object
+            object_folder_id = drive_manager.create_folder(self.object_name, parent_id=likelihood_folder_id)
+            drive_manager.upload_file_to_drive(f"{self.object_name}_backup.tar.gz", backup_file, object_folder_id)
+            print(f"Backup file uploaded to Google Drive in the 'Likelihood' folder.")
+
 def main():
     parser = argparse.ArgumentParser(description="Manage HST data processing tasks.")
     parser.add_argument('--halsin', help="Execute Halsin operations", action='store_true')
     parser.add_argument('--astarion', help="Setup Astarian directories", action='store_true')
+    parser.add_argument('--backup_astarion', help="Backup Astarian directories using tarball and gzip", action='store_true')
+    parser.add_argument('--upload_to_drive', help="Upload backup to Google Drive", action='store_true')
     args = parser.parse_args()
 
     manager = HSTManagement()
-    
+    drive_manager = GoogleDriveManager()
+
     if args.halsin:
         if manager.create_directory_and_copy_script():
             manager.execute_script()
@@ -158,6 +219,13 @@ def main():
         stellar_manager = StellarAgesManagement(manager.object_name)
         if not stellar_manager.create_astarion_subdirectories():
             print("Failed to create Astarian subdirectories.")
+
+    if args.backup_astarion:
+        stellar_manager = StellarAgesManagement(manager.object_name)
+        if args.upload_to_drive:
+            stellar_manager.backup_astarion(drive_manager)
+        else:
+            stellar_manager.backup_astarion()
 
 if __name__ == "__main__":
     main()
