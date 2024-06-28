@@ -304,20 +304,48 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   
   - Python 3.x
   - `pexpect`
+  - `tarfile` Standard library, no need to install
+  - `google-auth-oauthlib`
+  - `google-api-python-client`
   - Access to the internet
 
   ### Options
 
   - `--halsin`: This initiates the process for downloading data from MAST. It creates a desired directory, copies `Halsin.py` from this repo, initiates the `--hst_download` command from `Halsin.py`, presents you the data products that fit the filtered requirements, downloads the data for you, cleans up `Halsin.py`, then creates a copy of the `raw_data` and places it into a `working_directory` in preparation to run DOLPHOT with `Karlach.py`
-  - `--astarion`: This initiates the process for creating likelihood tables and running the inference found in `Stellar Ages`. It creates a desired directory, copies `Astarion.py` into this directory. Within this directory, it creates various nested subfolders in preparation for all of the outputs from Stellar Ages. 
+  - `--astarion`: This initiates the process for creating likelihood tables and running the inference found in `Stellar Ages`. It creates a desired directory, copies `Astarion.py` into this directory. Within this directory, it creates various nested subfolders in preparation for all of the outputs from Stellar Ages.
+  - `--backup_astarion`: This takes all the contents of the nested subfolders generated after running `Stellar Ages`, and automatically tarball and gzips them for backup
+  - `--upload_to_drive`: This is an additional optional argument used in conjunction with `--backup_astarion`. It takes the generated backup file, and logs into my google drive, creates a new directory in my research folder, and places the backup data in the freshly minted folder.
 
   ### Examples:
   e.g. bash `python3 Laezel.py --halsin`
 
   `python3 Laezel.py --astarion`
 
- ## Notes
- Given that Laezel uses commands intrinsic to `Halsin.py` and `Astarion.py`, it naturally assumes the notes of those scripts. e.g. Ensure you have a stable internet connection when using `Laezel.py` as this is necessary to download data from MAST.
+  `python3 Laezel.py --backup_astarion --upload_to_drive`
+
+ ## Notes 
+ Given that Laezel uses commands intrinsic to `Halsin.py` and `Astarion.py`, it naturally assumes the notes of those scripts. e.g. Ensure you have a stable internet connection when using `Laezel.py` as this is necessary to download data from MAST. If you would like to use the Google Drive API (i.e. you intend to use the `upload_to_drive` capabilities), follow the brief tutorial below.
+ Another note on using the Google Drive API, ensure that the google account you use has access to the Google Drive API and is added as a `test user` (presuming the application is in testing mode).
+ Consider regularly checking the script to handle changes to the Google APIs or python packages.
+
+## Setting Up Google Drive API
+1. **Google Cloud Console Setup:**
+   - Go to the [Google Cloud Console](https://console.cloud.google.com/).
+   - Create a new project, or select an existing one
+   - Navigate to "APIs & Services" > "Library" and enable the Google Drive API for your project
+
+2. **Create Credentials:**
+   - In the "Credentials" section, click on "Create Credentials" and select "OAuth client ID"
+   - If prompted, configure the consent screen by providing the necessary information (application name, email, etc.) Set the user type to "External" if you want the script to be used by people outside your organization
+   - For the application type, choose "Desktop app"
+   - Once created, download the JSON file containing your credentials. Please securely store this file, and it will be referenced in your script
+  
+3. **OAuth Consent Screen:**
+   - Configure the OAuth consent screen to specify which data your application can access. For this script, you need the `https://wwww.googleapis.com/auth/drive.file` scope, which allows the script to view and manage Google Drive files and folders that you have opened or created with this app.
+
+4. **Handling Credentials in Your Application:**
+   - Modify the script to point to your downloaded JSON file. Specifically in this script, the initialization is handled in the `GoogleDriveManager` class.
+   - Also, the script is currently setup to create and upload backups to a specific folder in my google drive. To adjust this to your specifics, find your `folder_id`, which is the long string at the end of the URL for your google drive folder, and replace `likelihood_folder_id` with your specific ID and it will place your data where desired.
 
 </details>
 
