@@ -52,6 +52,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   - `--calcsky_values`: Allows the user to provide custom values for the calcsky command.
   - `--headerkeys`: Generates header key information from .fits files without performing the entire DOLPHOT process.
   - `--phot`: Generates plots from the DOLPHOT photometry output.
+  - `--no_titles`: Removes any dynamically generated title information from plots in preparation for scientific publication
   - `--save_data`: Saves quality and distance filtered data sets to file.
   - `--pdf`: Specifies the plot outputs to PDF file, rather than display.
   
@@ -106,7 +107,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   #### Generate the dolphot parameter file by itself, assuming preprocessing (mask, splitgroups, calcsky) have been done separately.
   ```python Karlach.py --param```
   #### Save dolphot photometry data with quality and distance masks, and plot the freshly made data sets to .pdf
-  ```python Karlach.py --save_data --phot --pdf```
+  ```python Karlach.py --save_data --phot --pdf test.pdf```
   
   ## Notes
   - Executing ```--make``` assumes you have dolphot2.0 installed, as well as the necessary PSF and PAM files for your images. Verify that your 'Makefile' is in your /dolphot2.0/ directory.
