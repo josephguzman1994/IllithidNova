@@ -703,7 +703,7 @@ class PlotManager:
     #Define each plot individually, allows greater control, ease of debugging, modularity. Con is tracking down all the proper
     #Things to pass to each plot.
     
-    def plot_cmd(self, color, magnitude, cmd_label, mag_label, title):
+    def plot_cmd(self, color, magnitude, cmd_label, mag_label, title, include_title=True):
         #print(f"Debug: Length of color array: {len(color)}, Length of magnitude array: {len(magnitude)}")
         if len(color) != len(magnitude):
             raise ValueError("Color and magnitude arrays do not match in length.")
@@ -714,10 +714,11 @@ class PlotManager:
         plt.gca().invert_yaxis()
         plt.xlabel(cmd_label, fontsize=10, ha='center')
         plt.ylabel(mag_label, fontsize=10)
-        plt.title(title)
+        if include_title:
+            plt.title(title)
         return fig
 
-    def plot_cmd_density(self, color, magnitude, cmd_label, mag_label, title):
+    def plot_cmd_density(self, color, magnitude, cmd_label, mag_label, title, include_title=True):
         # Calculate the point density
         xy = np.vstack([color, magnitude])
         kde = gaussian_kde(xy)
@@ -731,10 +732,11 @@ class PlotManager:
         ax.invert_yaxis()
         ax.set_xlabel(cmd_label)
         ax.set_ylabel(mag_label)
-        ax.set_title(title)
+        if include_title:
+            ax.set_title(title)
         return fig
 
-    def plot_color_vs_abs_mag(self, color, abs_magnitude, cmd_label, mag_label, title):
+    def plot_color_vs_abs_mag(self, color, abs_magnitude, cmd_label, mag_label, title, include_title=True):
         fig = plt.figure(figsize=(9, 8))
         plt.scatter(color, abs_magnitude)
         plt.xlim(-5, 6)  # Adjust these limits based on your data
@@ -742,11 +744,12 @@ class PlotManager:
         plt.gca().invert_yaxis() # Invert y-axis for magnitudes
         plt.xlabel(cmd_label, fontsize=10, ha='center')
         plt.ylabel(mag_label, fontsize=10)
-        plt.title(title)
+        if include_title:
+            plt.title(title)
         plt.tight_layout()
         return fig
 
-    def plot_mag_mag(self, blue_mag, red_mag, blue_label, red_label, title):
+    def plot_mag_mag(self, blue_mag, red_mag, blue_label, red_label, title, include_title=True):
         fig = plt.figure(figsize=(8, 8))
         plt.scatter(blue_mag, red_mag)
         plt.xlim(16, 30) #limits currently hardcoded by eye
@@ -755,10 +758,11 @@ class PlotManager:
         plt.gca().invert_yaxis()
         plt.xlabel(self.blue_label, fontsize=10, ha='center')
         plt.ylabel(self.red_label, fontsize=10)
-        plt.title(title)
+        if include_title:
+            plt.title(title)
         return fig
 
-    def plot_mag_mag_density(self, blue_mag, red_mag, blue_label, red_label, title):
+    def plot_mag_mag_density(self, blue_mag, red_mag, blue_label, red_label, title, include_title=True):
         # Calculate the point density
         xy = np.vstack([blue_mag, red_mag])
         kde = gaussian_kde(xy)
@@ -773,10 +777,11 @@ class PlotManager:
         ax.invert_yaxis()
         ax.set_xlabel(self.blue_label, fontsize=10, ha='center')
         ax.set_ylabel(self.red_label, fontsize=10)
-        ax.set_title(title)
+        if include_title:
+            ax.set_title(title)
         return fig
 
-    def plot_uncertainty(self, mag, unc, mag_label, unc_label, title):
+    def plot_uncertainty(self, mag, unc, mag_label, unc_label, title, include_title=True):
         fig, ax = plt.subplots(figsize=(8, 8))
         ax.scatter(mag, unc)
         
@@ -800,12 +805,13 @@ class PlotManager:
         ax.set_ylim(bottom=-0.01)  # Ensure the y-axis starts slightly below 0
         ax.set_xlabel(mag_label, fontsize=10, ha='center')
         ax.set_ylabel(unc_label, fontsize=10)
-        ax.set_title(title)
+        if include_title:
+            ax.set_title(title)
         ax.legend()
         plt.tight_layout()
         return fig
 
-    def plot_skycoord(self, ra, dec, sn_ra, sn_dec, obj_name, title):
+    def plot_skycoord(self, ra, dec, sn_ra, sn_dec, obj_name, title, include_title=True):
         # This plot can output an offset for the x-axis and/or y-axis leading to more confusing tick labels
         base_ra = min(ra)
         base_offset = 114.32 - base_ra #Currently hardcoding offset by eye
@@ -818,13 +824,14 @@ class PlotManager:
         plt.scatter(sn_ra, sn_dec, color='red', marker='*', label=f"{obj_name}")
         plt.xlabel('RA (deg)')
         plt.ylabel('Dec (deg)')
-        plt.title(title)
+        if include_title:
+            plt.title(title)
         plt.gca().xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x + base_offset:.3f}'))
         plt.gca().yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y + base_dec_offset:.3f}'))
         plt.legend()
         return fig
 
-    def plot_skycoord_sizing(self, ra, dec, sn_ra, sn_dec, obj_name, title, blue_mag, red_mag):
+    def plot_skycoord_sizing(self, ra, dec, sn_ra, sn_dec, obj_name, title, blue_mag, red_mag, include_title=True):
         # Calculate the size of each point relative to the average of blue and red magnitudes
         # Brighter stars should have larger sizes, so we invert the magnitude scale
         # Normalize sizes: The size calculation here is arbitrary and can be adjusted as needed
@@ -844,7 +851,8 @@ class PlotManager:
         plt.scatter(sn_ra, sn_dec, color='red', marker='*', label=f"{obj_name}", s=200)  # Supernova with fixed larger size
         plt.xlabel('RA (deg)')
         plt.ylabel('Dec (deg)')
-        plt.title(title)
+        if include_title:
+            plt.title(title)
         plt.gca().xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x + base_offset:.3f}'))
         plt.gca().yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y + base_dec_offset:.3f}'))
         plt.legend()
@@ -858,11 +866,12 @@ class PlotManager:
             print(f"Error reading data from {file_path}: {e}")
             return None
 
-    def plot_data_from_file(self, data, threshold):
+    def plot_data_from_file(self, data, threshold, include_titles=True):
         print("Plotting data...")
 
         if self.pdf:
-            pdf_filename = f"{self.obj_name}_{threshold}pc_plots_from_saved.pdf"
+            title_suffix = '_notitles' if not include_titles else ""
+            pdf_filename = f"{self.obj_name}_{threshold}pc_plots_from_saved{title_suffix}.pdf"
             with PdfPages(pdf_filename) as pdf_pages:
                 # Extract columns from the data array
                 x_cut = data[:, 0]
@@ -887,7 +896,7 @@ class PlotManager:
                 red_unc_label = self.red_unc_label
 
                 # Call the plotting function with these arrays and labels
-                self.generate_and_save_plots(pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold)
+                self.generate_and_save_plots(pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold, include_titles)
                 print(f"Successfully generated the PDF file: {pdf_filename}!")
         else:
             # Extract columns from the data array
@@ -917,7 +926,7 @@ class PlotManager:
             self.show_plots(pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold)
 
     # Called with --pdf command. e.g. --phot --pdf [file.pdf]. Saves all figures above to single .pdf
-    def generate_and_save_plots(self, pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold):
+    def generate_and_save_plots(self, pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold, include_titles):
         #print(f"Debug: Length of data tuple: {len(data)}, Data: {data}")  # Debug statement
         #try:
         #    (x_cut, y_cut, blue_cut, red_cut, blue_unc_cut, red_unc_cut, color_filtered, cmd_label, self.red_label, self.blue_label, red_abs_cut_label, blue_abs_cut_label, red_unc_label, blue_unc_label, ra_filtered, dec_filtered, proximity_threshold, blue_abs_cut, red_abs_cut) = data
@@ -931,47 +940,47 @@ class PlotManager:
         
         # Formatting for plotting typically goes: x, y, xlabel, ylabel, title
         # Generate and save the CMD plot
-        cmd_fig = self.plot_cmd(color_filtered, red_cut, cmd_label, self.red_label, f"{self.phot_file}: Cut CMD {threshold}pc")
+        cmd_fig = self.plot_cmd(color_filtered, red_cut, cmd_label, self.red_label, f"{self.phot_file}: Cut CMD {threshold}pc", include_title=include_titles)
         pdf_pages.savefig(cmd_fig)
         plt.close(cmd_fig)  # Close the figure to free memory
 
         # Generate and save the CMD density plot
-        cmd_density_fig = self.plot_cmd_density(color_filtered, red_cut, cmd_label, self.red_label, f"{self.phot_file}: Density CMD {threshold}pc")
+        cmd_density_fig = self.plot_cmd_density(color_filtered, red_cut, cmd_label, self.red_label, f"{self.phot_file}: Density CMD {threshold}pc", include_title=include_titles)
         pdf_pages.savefig(cmd_density_fig)
         plt.close(cmd_density_fig)
 
         # Generate and save the Color vs Absolute Magnitude plot
-        color_abs_mag_fig = self.plot_color_vs_abs_mag(color_filtered, red_abs_cut, cmd_label, red_abs_cut_label, f"{self.phot_file}: Color vs Absolute Magnitude {threshold}pc")
+        color_abs_mag_fig = self.plot_color_vs_abs_mag(color_filtered, red_abs_cut, cmd_label, red_abs_cut_label, f"{self.phot_file}: Color vs Absolute Magnitude {threshold}pc", include_title=include_titles)
         pdf_pages.savefig(color_abs_mag_fig)
         plt.close(color_abs_mag_fig)
 
         # Generate and save the Magnitude-Magnitude plot
-        magmag_fig = self.plot_mag_mag(blue_cut, red_cut, self.blue_label, self.red_label, f"{self.phot_file}: Cut Mag-Mag {threshold}pc")
+        magmag_fig = self.plot_mag_mag(blue_cut, red_cut, self.blue_label, self.red_label, f"{self.phot_file}: Cut Mag-Mag {threshold}pc", include_title=include_titles)
         pdf_pages.savefig(magmag_fig)
         plt.close(magmag_fig)
 
         # Generate and save the density mag-mag plot
-        mag_mag_density_fig = self.plot_mag_mag_density(blue_cut, red_cut, self.blue_label, self.red_label, f"{self.phot_file}: Density Mag-Mag {threshold}pc")
+        mag_mag_density_fig = self.plot_mag_mag_density(blue_cut, red_cut, self.blue_label, self.red_label, f"{self.phot_file}: Density Mag-Mag {threshold}pc", include_title=include_titles)
         pdf_pages.savefig(mag_mag_density_fig)
         plt.close(mag_mag_density_fig)
 
         # Generate and save the Blue Uncertainty plot
-        blue_unc_fig = self.plot_uncertainty(blue_cut, blue_unc_cut, self.blue_label, blue_unc_label, f"{self.phot_file}: Cut Blue-Unc {threshold}pc")
+        blue_unc_fig = self.plot_uncertainty(blue_cut, blue_unc_cut, self.blue_label, blue_unc_label, f"{self.phot_file}: Cut Blue-Unc {threshold}pc", include_title=include_titles)
         pdf_pages.savefig(blue_unc_fig)
         plt.close(blue_unc_fig)
 
         # Generate and save the Red Uncertainty plot
-        red_unc_fig = self.plot_uncertainty(red_cut, red_unc_cut, self.red_label, red_unc_label, f"{self.phot_file}: Cut Red-Unc {threshold}pc")
+        red_unc_fig = self.plot_uncertainty(red_cut, red_unc_cut, self.red_label, red_unc_label, f"{self.phot_file}: Cut Red-Unc {threshold}pc", include_title=include_titles)
         pdf_pages.savefig(red_unc_fig)
         plt.close(red_unc_fig)
 
         # Generate and save the Sky Coordinates plot
-        skycoord_fig = self.plot_skycoord(ra_cut, dec_cut, self.sn_ra, self.sn_dec, self.obj_name, f"{self.phot_file} {threshold}pc")
+        skycoord_fig = self.plot_skycoord(ra_cut, dec_cut, self.sn_ra, self.sn_dec, self.obj_name, f"{self.phot_file} {threshold}pc", include_title=include_titles)
         pdf_pages.savefig(skycoord_fig)
         plt.close(skycoord_fig)
 
         # Generate and save the Skycoord fig, which adjusts the sizing of the points according to the mag of the star
-        skycoord_size_fig = self.plot_skycoord_sizing(ra_cut, dec_cut, self.sn_ra, self.sn_dec, self.obj_name, f"{self.phot_file} {threshold}pc Mag-Sizing", blue_cut, red_cut)
+        skycoord_size_fig = self.plot_skycoord_sizing(ra_cut, dec_cut, self.sn_ra, self.sn_dec, self.obj_name, f"{self.phot_file} {threshold}pc Mag-Sizing", blue_cut, red_cut, include_title=include_titles)
         pdf_pages.savefig(skycoord_size_fig)
         plt.close(skycoord_size_fig)
 
@@ -1025,6 +1034,7 @@ def main():
     parser.add_argument('--headerkeys', action='store_true', help='If you want to generate headerkey info without performing whole dolphot process')
     parser.add_argument('--phot', action='store_true', help='Make several plots from the output dolphot photometry')
     parser.add_argument('--save_data', action='store_true', help='Save quality and distance filtered datasets to .txt and .npy files')
+    parser.add_argument('--no_titles', action='store_true', help='Generate plots without titles for publication')
     parser.add_argument('--pdf', type=str, help='Output PDF files to save the plots')
     args = parser.parse_args()
 
@@ -1338,7 +1348,7 @@ def main():
                 full_file_name_npy = f"{plotter.obj_name}_{threshold}pc_{plotter.blue_label}_{plotter.red_label}_full.npy"
                 data = plotter.read_saved_data(full_file_name_npy)
                 if data is not None:
-                    plotter.plot_data_from_file(data, threshold)
+                    plotter.plot_data_from_file(data, threshold, not args.no_titles)
             else:
                 print(f"Failed to load data for threshold {threshold} pc.")
 
