@@ -527,7 +527,7 @@ class DataFilterOrganizer:
                     output.write("\t--------------------------------------------------\n")
 
 class PlotManager:
-    def __init__(self, config, obj_name, distance, proximity_thresholds, pdf=None):
+    def __init__(self, config, obj_name, distance, proximity_thresholds, pdf=None, data_dir=None):
         
         if not isinstance(config, configparser.ConfigParser):
             raise ValueError("Config must be an instance of configparser.ConfigParser")
@@ -537,6 +537,7 @@ class PlotManager:
         self.distance = distance
         self.proximity_thresholds = proximity_thresholds
         self.pdf = pdf
+        self.data_dir = data_dir
 
         # Assuming you ran --dolphot, the code will automatically write phot_file and ref_file to config.ini for you,
         # if you immediately run --phot. Alternatively, you can choose to define phot_file and ref_file in config.ini manually
@@ -677,12 +678,12 @@ class PlotManager:
         data_array = np.column_stack((blue_cut, blue_unc_cut, red_cut , red_unc_cut))
         full_data_array = np.column_stack((x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut))
 
-        # Dynamically generate the file names based on the object name and filter labels
+        # Dynamically generate the file names based on the object name and filter labels, save to "data" subdirectory
         file_suffix = f"{obj_name}_{threshold}pc_{self.blue_label}_{self.red_label}"
-        file_name_npy = f'{file_suffix}.err.npy'
-        file_name_txt = f'{file_suffix}.err.txt'
-        full_file_name_npy = f'{file_suffix}_full.npy'
-        full_file_name_txt = f'{file_suffix}_full.txt'
+        file_name_npy = os.path.join(self.data_dir, f'{file_suffix}.err.npy')
+        file_name_txt = os.path.join(self.data_dir, f'{file_suffix}.err.txt')
+        full_file_name_npy = os.path.join(self.data_dir, f'{file_suffix}_full.npy')
+        full_file_name_txt = os.path.join(self.data_dir, f'{file_suffix}_full.txt')
 
         # Define the header dynamically
         header = f'Blue_Magnitude({self.blue_label}) Blue_Magnitude_Uncertainty({self.blue_label}) Red_Magnitude({self.red_label}) Red_Magnitude_Uncertainty({self.red_label})'
@@ -703,15 +704,34 @@ class PlotManager:
     #Define each plot individually, allows greater control, ease of debugging, modularity. Con is tracking down all the proper
     #Things to pass to each plot.
     
+    def set_axes_limits(self, data, lower_percentile=-50, upper_percentile=150):
+        lower_bound = np.percentile(data, max(0, lower_percentile))
+        upper_bound = np.percentile(data, min(100, upper_percentile))
+        
+        # Extend bounds beyond the data range
+        if lower_percentile < 0:
+            lower_bound -= (np.percentile(data, 50) - lower_bound) * abs(lower_percentile) / 100
+        if upper_percentile > 100:
+            upper_bound += (upper_bound - np.percentile(data, 50)) * (upper_percentile - 100) / 100
+        
+        return lower_bound, upper_bound
+
     def plot_cmd(self, color, magnitude, cmd_label, mag_label, title, include_title=True):
         #print(f"Debug: Length of color array: {len(color)}, Length of magnitude array: {len(magnitude)}")
         if len(color) != len(magnitude):
             raise ValueError("Color and magnitude arrays do not match in length.")
         fig = plt.figure(figsize=(9, 8))
         plt.scatter(color, magnitude)
-        plt.xlim(-5, 6) #limits currently hardcoded by eye
-        plt.ylim(16, 30)
-        plt.gca().invert_yaxis()
+
+        # Automatically set axes limits
+        x_lower, x_upper = self.set_axes_limits(color)
+        y_lower, y_upper = self.set_axes_limits(magnitude)
+        plt.xlim(x_lower, x_upper)
+        plt.ylim(y_upper, y_lower)  # Invert y-axis for magnitudes
+
+        #plt.xlim(-5, 6) #limits currently hardcoded by eye
+        #plt.ylim(16, 30)
+        #plt.gca().invert_yaxis()
         plt.xlabel(cmd_label, fontsize=10, ha='center')
         plt.ylabel(mag_label, fontsize=10)
         if include_title:
@@ -871,7 +891,7 @@ class PlotManager:
 
         if self.pdf:
             title_suffix = '_notitles' if not include_titles else ""
-            pdf_filename = f"{self.obj_name}_{threshold}pc_plots_from_saved{title_suffix}.pdf"
+            pdf_filename = os.path.join(self.data_dir, f"{self.obj_name}_{threshold}pc_plots_from_saved{title_suffix}.pdf")
             with PdfPages(pdf_filename) as pdf_pages:
                 # Extract columns from the data array
                 x_cut = data[:, 0]
@@ -1324,8 +1344,13 @@ def main():
             print(f"Object Name: {obj_name}")
             print(f"Distance: {distance}")
             print(f"Proximity Thresholds: {proximity_thresholds}")
+
+        # Check for "data" subdirectory and create it, if it does not exist
+        data_dir = os.path.join(os.getcwd(), 'data')
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
         
-        plotter = PlotManager(config, obj_name, distance, pdf=args.pdf, proximity_thresholds=proximity_thresholds)
+        plotter = PlotManager(config, obj_name, distance, pdf=args.pdf, proximity_thresholds=proximity_thresholds, data_dir=data_dir)
         prepared_data = plotter.prepare_data()
         
         if prepared_data is None:
