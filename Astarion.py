@@ -19,7 +19,7 @@ class Param_Generator:
             'unctype': 'sigma',
             'perfectsampleav': perfectsampleav
         }
-        self.instrument_options = ['ACS_HRC', 'ACS_WFC', 'WFC3_UVIS', 'WFPC2']
+        self.instrument_options = ['HST/ACS HRC', 'HST/ACS WFC', 'HST/WFC3 wide filters']
 
     def filter_ages(self, max_age):
         all_ages = list(map(float, self.params['genlikeliages'].split(', ')))
