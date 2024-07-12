@@ -10,7 +10,7 @@ class Param_Generator:
     def __init__(self, perfectsampleav=False, genlikeliavtildes=None):
         self.params = {
             'isodir': '/home/joe/Research/Isochrones_Parsec/',
-            'datasource': 'HST',
+            'isomodel': 'Parsec',
             'usegaiaplx': False,
             'genlikeliages': '6.50, 6.60, 6.70, 6.80, 6.90, 7.00, 7.10, 7.20, 7.30, 7.40, 7.50, 7.60, 7.80, 8.00, 8.20, 8.40, 8.60, 8.80, 9.00, 9.20, 9.40, 9.60, 9.80, 10.00',
             'genlikelizs': '-0.40, -0.20, 0.00, 0.20',
@@ -28,7 +28,7 @@ class Param_Generator:
     
     def get_user_input(self, param_name, default_value=None, base_dir=None, options=None):
         while True:
-            if options and param_name == 'instrument':
+            if options and param_name == 'photsystem':
                 print(f"Available options for {param_name}: {', '.join(options)}")
                 user_input = input(f"Enter value for {param_name}: ").strip().upper()
                 if user_input not in options:
@@ -40,16 +40,9 @@ class Param_Generator:
             else:
                 user_input = input(f"Enter value for {param_name}: ").strip()
 
-            if param_name == 'errdir':
-                if not os.path.isdir(user_input):
-                    print(f"Error: The directory '{user_input}' does not exist.")
-                    continue
-                else:
-                    return user_input
-            elif param_name == 'errfile':
-                full_path = os.path.join(base_dir, user_input)
-                if not os.path.isfile(full_path):
-                    print(f"Error: The file '{user_input}' does not exist in the directory '{base_dir}'.")
+            if param_name == 'datafile':
+                if not os.path.isfile(user_input):
+                    print(f"Error: The file '{user_input}' does not exist.")
                     continue
                 else:
                     return user_input
@@ -64,17 +57,15 @@ class Param_Generator:
         max_age = float(input("Enter the maximum age to consider: "))
         self.params['genlikeliages'] = self.filter_ages(max_age)
 
-        self.params['errdir'] = self.get_user_input('errdir')
-        user_input_params = ['errfile', 'instrument', 'distancemodulus', 'table_bluemax', 'table_redmax', 'mags']
+        self.params['datafile'] = self.get_user_input('datafile')
+        user_input_params = ['photsystem', 'distancemodulus', 'table_bluemax', 'table_redmax', 'mags']
         for param in user_input_params:
-            if param == 'instrument':
+            if param == 'photsystem':
                 self.params[param] = self.get_user_input(param, options=self.instrument_options).upper()
-            elif param == 'errfile':
-                self.params[param] = self.get_user_input(param, base_dir=self.params['errdir'])
             else:
                 self.params[param] = self.get_user_input(param)
 
-        param_order = ['isodir', 'errdir', 'errfile', 'datasource', 'usegaiaplx', 'instrument', 'distancemodulus', 'genlikeliages', 'genlikelizs', 'genlikelimmin', 'genlikeliavtildes', 'table_bluemax', 'table_redmax', 'mags', 'unctype', 'perfectsampleav']
+        param_order = ['isodir', 'datafile', 'isomodel', 'photsystem', 'usegaiaplx', 'distancemodulus', 'genlikeliages', 'genlikelizs', 'genlikelimmin', 'genlikeliavtildes', 'table_bluemax', 'table_redmax', 'mags', 'unctype', 'perfectsampleav']
         with open('Params.dat', 'w') as file:
             for key in param_order:
                 file.write(f"{key} = {self.params[key]}\n")
