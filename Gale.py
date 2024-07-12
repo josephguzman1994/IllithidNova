@@ -96,24 +96,68 @@ class PARSEC:
 
 # This class handles scrubbing the downloaded isochrones from CMD for the relevant information
 class UnpackIsoSet:
-    def __init__(self, isodir, instrument, datasource):
+    def __init__(self, isodir, instrument, datasource, isomodel='Parsec', photsystem=None, mags=None):
         self.isodir = isodir
         self.instrument = instrument
         self.datasource = datasource
+        self.isomodel = isomodel
+        self.photsystem = photsystem or instrument
+        self.mags = mags
+
+    def get_iso_index(self, mag):
+        index_map = {
+            'WFC3_UVIS': {'F438W': 33, 'F475W': 34, 'F555W': 35, 'F606W': 36, 'F814W': 39},
+            'ACS_WFC': {'F435W': 28, 'F475W': 29, 'F555W': 30, 'F606W': 31, 'F814W': 34},
+            'ACS_HRC': {'F435W': 32, 'F475W': 33, 'F555W': 35, 'F606W': 36, 'F814W': 41},
+            'WFPC2': {'F439W': 34, 'F450W': 35, 'F555W': 36, 'F606W': 38, 'F814W': 43}
+        }
+        return index_map.get(self.photsystem, {}).get(mag, None)
+    
+    def extinction_factors(self, mag):
+        factors = {
+            'WFC3_UVIS': {'F438W': 1.34148, 'F475W': 1.20367, 'F555W': 1.04089, 'F814W': 0.587},
+            'ACS_WFC': {'F435W': 1.33879, 'F475W': 1.21179, 'F555W': 1.03065, 'F606W': 0.90328, 'F814W': 0.59696},
+            'ACS_HRC': {'F435W': 1.34370, 'F475W': 1.20282, 'F555W': 1.03202, 'F606W': 0.90939, 'F814W': 0.58595},
+            'WFPC2': {'F439W': 1.34515, 'F450W': 1.27128, 'F555W': 1.00654, 'F606W': 0.86409, 'F814W': 0.60352}
+        }
+        return factors.get(self.photsystem, {}).get(mag, 1.0)
+    
+    def list_available_filters(self):
+        filters_map = {
+            'WFC3_UVIS': ['F438W', 'F475W', 'F555W', 'F606W', 'F814W'],
+            'ACS_WFC': ['F435W', 'F475W', 'F555W', 'F606W', 'F814W'],
+            'ACS_HRC': ['F435W', 'F475W', 'F555W', 'F606W', 'F814W'],
+            'WFPC2': ['F439W', 'F450W', 'F555W', 'F606W', 'F814W']
+        }
+        return filters_map.get(self.photsystem, [])
 
     def read_iso_set(self, isosetfile):
         with open(isosetfile) as f:
             lines = f.readlines()
 
-        # Currently hardcoding columns read in. icol format = Mini, Mass, LogL, LogTe, F438Wmag, F475Wmag, F555Wmag, F606Wmag, F814Wmag
+        if not self.mags:
+            available_filters = self.list_available_filters()
+            print("Available filters:")
+            for idx, filt in enumerate(available_filters):
+                print(f"{idx}: {filt}")
+
+            blue_idx = int(input("Enter the index for the blue filter: "))
+            red_idx = int(input("Enter the index for the red filter: "))
+
+            self.mags = [available_filters[blue_idx], available_filters[red_idx]]
+
+        blue, red = self.mags
+        iblue = self.get_iso_index(blue)
+        ired = self.get_iso_index(red)
+        fblue = self.extinction_factors(blue)
+        fred = self.extinction_factors(red)
+
+        if iblue is None or ired is None:
+            raise ValueError(f"Invalid magnitudes: {blue}, {red} for photometric system {self.photsystem}")
+
+        # Currently hardcoding columns read in. icol format = Mini, Mass, LogL, LogTe, chosen blue and red filters
         # More filters available if necessary.
-        icols = {
-            # Add instruments here as needed.
-            'ACS_HRC': [3, 5, 6, 7, 32, 33, 35, 36, 41],
-            'ACS_WFC': [3, 5, 6, 7, 28, 29, 30, 31, 34],
-            'WFC3_UVIS': [3, 5, 6, 7, 33, 34, 35, 36, 39],
-            'WFPC2': [3, 5, 6, 7, 28, 29, 30, 31, 34]
-        }[self.instrument]
+        icols = [3, 5, 6, 7, iblue, ired]
 
         # Below splits the combined isochrones, into Age, Metallicity .npy combinations
         isodata = []
@@ -131,9 +175,9 @@ class UnpackIsoSet:
                 if (mh != lastmh or logage != lastlogage):
                     if (printisodata):
                         isodata = np.array(isodata)
-                        isofile = f"{self.isodir}IsoParsec1.2_{self.datasource}_{self.instrument}_{lastlogage:.2f}_{lastmh:.2f}_0.0.npy"
+                        isofile = f"{self.isodir}Iso_{lastlogage:.2f}_{lastmh:.2f}_0.0.npz"
                         print(isofile, np.shape(isodata))
-                        np.save(isofile, isodata)
+                        np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, mags=self.mags, fblue=fblue, fred=fred)
                     isodata = []
                     printisodata = True
                 isodata.append(data)
@@ -142,9 +186,9 @@ class UnpackIsoSet:
 
         if printisodata:
             isodata = np.array(isodata)
-            isofile = os.path.join(self.isodir, f"{self.isodir}IsoParsec1.2_{self.datasource}_{self.instrument}_{lastlogage:.2f}_{lastmh:.1f}_0.0.npy")
+            isofile = os.path.join(self.isodir, f"Iso_{lastlogage:.2f}_{lastmh:.1f}_0.0.npz")
             print(isofile, np.shape(isodata))
-            np.save(isofile, isodata)
+            np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, mags=self.mags, fblue=fblue, fred=fred)
 
 class IsochroneAnalyzer:
     def __init__(self, isodir, instrument, datasource):
@@ -158,7 +202,8 @@ class IsochroneAnalyzer:
         index_map = {
             'WFC3_UVIS': {'F438W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
             'ACS_WFC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
-            'ACS_HRC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8}
+            'ACS_HRC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
+            'WFPC2': {'F439W': 34, 'F450W': 35, 'F555W': 36, 'F606W': 38, 'F814W': 43}
         }
         return list(index_map.keys())
 
@@ -174,6 +219,9 @@ class IsochroneAnalyzer:
             },
             'ACS_HRC': {
                 'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
+            },
+            'WFPC2': {
+                'F439W': 4, 'F450W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
             }
         }
         return index_map.get(self.instrument, {}).get(mag, None)
@@ -190,6 +238,9 @@ class IsochroneAnalyzer:
             },
             'ACS_HRC': {
                 'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
+            },
+            'WFPC2': {
+                'F439W': 4, 'F450W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
             }
         }
         unique_filters = set()
@@ -413,7 +464,7 @@ async def main():
             print("Let's attempt to download the desired isochrones by defining some parameters")
             
             print("Currently available photometric systems: ", list(photometric_systems.keys()))
-            photometric_input = input("Enter the photometric system (e.g., ACS_HRC): ")
+            photometric_input = input("Enter the photometric system: ")
             photsys_file = photometric_systems.get(photometric_input.upper())
             
             if photsys_file is None:
@@ -499,7 +550,20 @@ async def main():
             if args.UnpackIsoSet:
                 instrument_input = os.getenv('INSTRUMENT', 'Unknown Instrument')
                 print(f"Proceeding to unpack isochrone data for {instrument_input}")
-                unpacker = UnpackIsoSet(isodir, instrument_input, os.getenv('DATASOURCE'))
+                datasource = get_datasource(instrument_input)
+                unpacker = UnpackIsoSet(isodir, instrument_input, datasource, photsystem=instrument_input)
+                
+                available_filters = unpacker.list_available_filters()
+                print("Available filters:")
+                for idx, filt in enumerate(available_filters):
+                    print(f"{idx}: {filt}")
+
+                blue_idx = int(input("Enter the index for the blue filter: "))
+                red_idx = int(input("Enter the index for the red filter: "))
+
+                mags = [available_filters[blue_idx], available_filters[red_idx]]
+                unpacker.mags = mags
+                
                 unpacker.read_iso_set(output_filename)
                 print("Data unpacking complete.\n")
         else:
@@ -508,7 +572,21 @@ async def main():
     # Can use UnpackIsoSet without download_iso if you have the necessary information.
     # If you ran --download_iso in the same terminal session, it can automatically fetch everything necessary with environment variables
     if args.UnpackIsoSet and not args.download_iso:
-        unpacker = UnpackIsoSet(isodir, os.getenv('INSTRUMENT'), os.getenv('DATASOURCE'))
+        instrument = os.getenv('INSTRUMENT', input("Enter the instrument (e.g., ACS_HRC, ACS_WFC): "))
+        datasource = get_datasource(instrument)
+        unpacker = UnpackIsoSet(isodir, instrument, datasource, photsystem=instrument)
+
+        available_filters = unpacker.list_available_filters()
+        print("Available filters:")
+        for idx, filt in enumerate(available_filters):
+            print(f"{idx}: {filt}")
+
+        blue_idx = int(input("Enter the index for the blue filter: "))
+        red_idx = int(input("Enter the index for the red filter: "))
+
+        mags = [available_filters[blue_idx], available_filters[red_idx]]
+        unpacker.mags = mags
+
         isosetfile = os.getenv('ISOSETFILE', input("Enter the isochrone set file name: "))
         unpacker.read_iso_set(isosetfile)
 
