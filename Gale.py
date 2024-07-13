@@ -190,6 +190,8 @@ class UnpackIsoSet:
             print(isofile, np.shape(isodata))
             np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, mags=self.mags, fblue=fblue, fred=fred)
 
+
+
 class IsochroneAnalyzer:
     def __init__(self, isodir, instrument, datasource):
         self.isodir = isodir
@@ -203,45 +205,25 @@ class IsochroneAnalyzer:
             'WFC3_UVIS': {'F438W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
             'ACS_WFC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
             'ACS_HRC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
-            'WFPC2': {'F439W': 34, 'F450W': 35, 'F555W': 36, 'F606W': 38, 'F814W': 43}
+            'WFPC2': {'F439W': 4, 'F450W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8}
         }
         return list(index_map.keys())
 
     # Find the relevant indices needed for plotting isochrones and inspecting isochrone data
-    def get_iso_index(self, mag):
-        """Return the index of the magnitude based on the instrument and magnitude name."""
-        index_map = {
-            'WFC3_UVIS': {
-                'F438W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
-            },
-            'ACS_WFC': {
-                'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
-            },
-            'ACS_HRC': {
-                'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
-            },
-            'WFPC2': {
-                'F439W': 4, 'F450W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
-            }
-        }
-        return index_map.get(self.instrument, {}).get(mag, None)
+    def get_iso_index(self, mag, mags):
+        """Return the index of the magnitude based on the mags list."""
+        indices = np.where(mags == mag)
+        if len(indices[0]) == 0:
+            return None
+        return indices[0][0]
     
     # List all unique filters available across all instruments
     def list_available_filters(self):
-        """List all unique filters available across all instruments."""
         index_map = {
-            'WFC3': {
-                'F438W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
-            },
-            'ACS_WFC': {
-                'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
-            },
-            'ACS_HRC': {
-                'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
-            },
-            'WFPC2': {
-                'F439W': 4, 'F450W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8
-            }
+            'WFC3': {'F438W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
+            'ACS_WFC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
+            'ACS_HRC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
+            'WFPC2': {'F439W': 4, 'F450W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8}
         }
         unique_filters = set()
         for filters in index_map.values():
@@ -259,11 +241,8 @@ class IsochroneAnalyzer:
         self.list_available_filters()
         blue_mag = input("Enter the blue filter (e.g., F435W, F475W): ")
 
-        iblue = self.get_iso_index(blue_mag)
-        if iblue is None:
-            print(f"Invalid magnitude for the instrument {self.instrument}.")
-            return
-
+        # Assuming the structure of isodata is: "Mini", "Mass", "LogL", "LogTe", "blue magnitude", "red magnitude"
+        iblue = 4
         bluemin_global = -99.
         # Initialize ages we may want to exclude from the analysis
         excluded_ages = []
@@ -282,26 +261,28 @@ class IsochroneAnalyzer:
                     ]
                     file_found = False
                     for formatted_age, formatted_z in combinations:
-                        isofile = os.path.join(self.isodir, f"IsoParsec1.2_{self.datasource}_{self.instrument}_{formatted_age}_{formatted_z}_0.0.npy")
+                        isofile = os.path.join(self.isodir, f"Iso_{formatted_age}_{formatted_z}_0.0.npz")
+                        
                         if os.path.exists(isofile):
-                            # Load the isochrone data and calculate the minimum blue magnitude
-                            isodata = np.load(isofile)
-                            bluemin = np.min(isodata[:, iblue] + mu)
-                            bluemin_global = max(bluemin_global, bluemin)
-                            output = f'age = {formatted_age} z = {formatted_z} bluemin = {bluemin}'
-                            print(output)
-                            outputs.append(output)
-                            file_found = True
-                            # If the minimum blue magnitude is greater than the maximum table value, exclude the age
-                            if bluemin > table_bluemax:
-                                age_excluded = True
-                            break
+                            with np.load(isofile) as data:
+                                isodata = data['isodata']
+                                
+                                # Assuming the structure of isodata is: "Mini", "Mass", "LogL", "LogTe", "blue magnitude", "red magnitude"
+                                iblue = 4
+                                bluemin = np.min(isodata[:, iblue] + mu)
+                                bluemin_global = max(bluemin_global, bluemin)
+                                output = f'age = {formatted_age} z = {formatted_z} bluemin = {bluemin}'
+                                print(output)
+                                outputs.append(output)
+                                file_found = True
+                                if bluemin > table_bluemax:
+                                    age_excluded = True
+                                break
                     if not file_found:
                         output = f"File not found: {isofile}"
                         print(output)
                         outputs.append(output)
                 if age_excluded:
-                    # Add the age to the list of excluded ages
                     excluded_ages.append(age)
 
             # Generate a list of recommended ages to use based upon the ages that have not been excluded
@@ -328,19 +309,35 @@ class IsochroneAnalyzer:
             formatted_age = f"{float(age):.2f}"
             formatted_z = f"{float(z):.2f}"
             
-            isofile = f"{isodir}/IsoParsec1.2_{self.datasource}_{self.instrument}_{formatted_age}_{formatted_z}_0.0.npy"
+            isofile = os.path.join(isodir, f"Iso_{formatted_age}_{formatted_z}_0.0.npz")
             
             if os.path.exists(isofile):
-                isodata = np.load(isofile)
-                blue_index = self.get_iso_index(blue_mag)
-                red_index = self.get_iso_index(red_mag)
-                color = isodata[:, blue_index] - isodata[:, red_index]
-                magnitude = isodata[:, red_index]
-                
-                # Generate a color from the colormap based on the index
-                plot_color = cmap(index / num_ages)
-                plt.plot(color, magnitude, color=plot_color)
-                plt.text(color[-1], magnitude[-1], f'{age}', color=plot_color, fontsize=5)
+                print(f"Loading file: {isofile}")  # Debug print
+                with np.load(isofile) as data:
+                    isodata = data['isodata']
+                    print(f"Loaded isodata shape: {isodata.shape}")  # Debug print
+
+                    # Save data to a .txt file for inspection
+                    #txt_filename = os.path.join(isodir, f"Data_Inspection_{formatted_age}_{formatted_z}.txt")
+                    #with open(txt_filename, 'w') as txt_file:
+                    #    txt_file.write("isodata:\n")
+                    #    np.savetxt(txt_file, isodata, fmt='%.6e')
+                    #    txt_file.write("\nmags:\n")
+                    #    np.savetxt(txt_file, mags, fmt='%s')
+                    #    txt_file.write(f"\nfblue: {fblue}\n")
+                    #    txt_file.write(f"fred: {fred}\n")
+                    #print(f"Data saved to {txt_filename}")
+
+                    # Assuming the structure of isodata is: "Mini", "Mass", "LogL", "LogTe", "blue magnitude", "red magnitude"
+                    blue_index = 4
+                    red_index = 5
+
+                    color = isodata[:, blue_index] - isodata[:, red_index]
+                    magnitude = isodata[:, red_index]
+                    
+                    plot_color = cmap(index / num_ages)
+                    plt.plot(color, magnitude, color=plot_color)
+                    plt.text(color[-1], magnitude[-1], f'{age}', color=plot_color, fontsize=5)
             else:
                 print(f"File not found: {isofile}")
 
@@ -358,29 +355,29 @@ class IsochroneAnalyzer:
         for index, z in enumerate(zs):
             formatted_age = f"{float(age):.2f}"
             formatted_z = f"{float(z):.2f}"
-            isofile = f"{isodir}/IsoParsec1.2_{self.datasource}_{self.instrument}_{formatted_age}_{formatted_z}_0.0.npy"
+            isofile = os.path.join(isodir, f"Iso_{formatted_age}_{formatted_z}_0.0.npz")
             if os.path.exists(isofile):
-                isodata = np.load(isofile)
-                blue_index = self.get_iso_index(blue_mag)
-                red_index = self.get_iso_index(red_mag)
-                color = isodata[:, blue_index] - isodata[:, red_index]
-                magnitude = isodata[:, red_index]
-                plot_color = cmap(index / num_zs)
-                plt.plot(color, magnitude, color=plot_color)
+                with np.load(isofile) as data:
+                    isodata = data['isodata']
+                    
+                    # Assuming the structure of isodata is: "Mini", "Mass", "LogL", "LogTe", "blue magnitude", "red magnitude"
+                    blue_index = 4
+                    red_index = 5
+                    color = isodata[:, blue_index] - isodata[:, red_index]
+                    magnitude = isodata[:, red_index]
+                    plot_color = cmap(index / num_zs)
+                    plt.plot(color, magnitude, color=plot_color)
 
-                #Ran into an issue where the generated text ran outside the bounds of the plot. This is a fix.
-                # Calculate thresholds as a percentage of the axis ranges
-                x_range = plt.xlim()
-                y_range = plt.ylim()
+                    x_range = plt.xlim()
+                    y_range = plt.ylim()
 
-                x_threshold = 0.02 * (x_range[1] - x_range[0])
-                y_threshold = 0.02 * (y_range[1] - y_range[0])
+                    x_threshold = 0.02 * (x_range[1] - x_range[0])
+                    y_threshold = 0.02 * (y_range[1] - y_range[0])
 
-                # Determine offsets dynamically
-                x_offset = -0.02 if color[-1] > (x_range[1] - x_threshold) else (0.02 if color[-1] < (x_range[0] + x_threshold) else 0)
-                y_offset = -0.02 if magnitude[-1] > (y_range[1] - y_threshold) else (0.02 if magnitude[-1] < (y_range[0] + y_threshold) else 0)
+                    x_offset = -0.02 if color[-1] > (x_range[1] - x_threshold) else (0.02 if color[-1] < (x_range[0] + x_threshold) else 0)
+                    y_offset = -0.02 if magnitude[-1] > (y_range[1] - y_threshold) else (0.02 if magnitude[-1] < (y_range[0] + y_threshold) else 0)
 
-                plt.text(color[-1] + x_offset, magnitude[-1] + y_offset, f'{z}', color=plot_color, fontsize=6, clip_on=True)
+                    plt.text(color[-1] + x_offset, magnitude[-1] + y_offset, f'{z}', color=plot_color, fontsize=6, clip_on=True)
             else:
                 print(f"File not found: {isofile}")
         plt.xlabel(f'{blue_mag} - {red_mag}')
@@ -395,15 +392,18 @@ class IsochroneAnalyzer:
         plt.figure()
         formatted_age = f"{float(age):.2f}"
         formatted_z = f"{float(z):.2f}"
-        isofile = f"{isodir}/IsoParsec1.2_{self.datasource}_{self.instrument}_{formatted_age}_{formatted_z}_0.0.npy"
+        isofile = os.path.join(isodir, f"Iso_{formatted_age}_{formatted_z}_0.0.npz")
         if os.path.exists(isofile):
-            isodata = np.load(isofile)
-            blue_index = self.get_iso_index(blue_mag)
-            red_index = self.get_iso_index(red_mag)
-            color = isodata[:, blue_index] - isodata[:, red_index]
-            magnitude = isodata[:, red_index]
-            plt.plot(color, magnitude, label=f'Age = {age}, Z = {z}')
-            plt.legend(fontsize=9)
+            with np.load(isofile) as data:
+                isodata = data['isodata']
+                
+                # Assuming the structure of isodata is: "Mini", "Mass", "LogL", "LogTe", "blue magnitude", "red magnitude"
+                blue_index = 4
+                red_index = 5
+                color = isodata[:, blue_index] - isodata[:, red_index]
+                magnitude = isodata[:, red_index]
+                plt.plot(color, magnitude, label=f'Age = {age}, Z = {z}')
+                plt.legend(fontsize=9)
         else:
             print(f"File not found: {isofile}")
         plt.xlabel(f'{blue_mag} - {red_mag}')
