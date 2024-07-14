@@ -159,7 +159,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   To use `Gale.py`, you can utilize the following command-line arguments:
   
   - `--download_iso`: Trigger the download of isochrone data.
-  - `--UnpackIsoSet`: Unpack the downloaded `.set` file into separate `.npy` files.
+  - `--UnpackIsoSet`: Unpack the downloaded `.set` file into separate `.npz` files.
   - `--isodir`: Specify the directory where unpacked data should be stored. If not utilized, defaults to the current working directory.
   - `--plot_age_iso`: Reads in unpacked .npy files to plot isochrones for varying ages and a fixed metallicity.
   - `--plot_z_iso`: Reads in unpacked .npy files to  plot isochrones for varying metallicities and a fixed age.
@@ -170,7 +170,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   1. **Downloading and Unpacking Data**
   bash ```python3 Gale.py --download_iso --UnpackIsoSet```
   
-  &emsp; This command downloads the isochrone data based on user inputs and immediately unpacks it into the current directory. Utilizes environment variables to minimize user input  
+  &emsp; This command downloads the isochrone data based on user inputs and immediately unpacks it into the current directory. Utilizes environment variables to minimize user input. The structure of the `.npz` files are as follows: `isodata` which has 6 columns: `"Mini", "Mass", "LogL", "LogTe", "blue magnitude", "red magnitude"` , then `isomodel` which refers to Parsec v1.2S in this case. `photsystem` which refers to the scientific instrument of interest, `mags` which refers to the blue and red magnitudes utilized, `fblue` the extinction scaling factor for the blue band, `fred` the extinction scaling factor for the red band
   
   2. **Unpacking Existing Data and Choosing Output Directory**
   bash ```python3 Gale.py --UnpackIsoSet --isodir /path/to/directory```
