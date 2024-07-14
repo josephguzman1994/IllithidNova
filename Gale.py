@@ -175,7 +175,7 @@ class UnpackIsoSet:
                 if (mh != lastmh or logage != lastlogage):
                     if (printisodata):
                         isodata = np.array(isodata)
-                        isofile = f"{self.isodir}Iso_{lastlogage:.2f}_{lastmh:.2f}_0.0.npz"
+                        isofile = os.path.join(self.isodir, f"Iso_{lastlogage:.2f}_{lastmh:.2f}_0.0.npz")
                         print(isofile, np.shape(isodata))
                         np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, mags=self.mags, fblue=fblue, fred=fred)
                     isodata = []
