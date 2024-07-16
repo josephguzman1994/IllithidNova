@@ -724,14 +724,14 @@ class PlotManager:
         plt.scatter(color, magnitude)
 
         # Automatically set axes limits
-        x_lower, x_upper = self.set_axes_limits(color)
-        y_lower, y_upper = self.set_axes_limits(magnitude)
-        plt.xlim(x_lower, x_upper)
-        plt.ylim(y_upper, y_lower)  # Invert y-axis for magnitudes
+        #x_lower, x_upper = self.set_axes_limits(color)
+        #y_lower, y_upper = self.set_axes_limits(magnitude)
+        #plt.xlim(x_lower, x_upper)
+        #plt.ylim(y_upper, y_lower)  # Invert y-axis for magnitudes
 
-        #plt.xlim(-5, 6) #limits currently hardcoded by eye
-        #plt.ylim(16, 30)
-        #plt.gca().invert_yaxis()
+        plt.xlim(-2, 4) #limits currently hardcoded by eye
+        plt.ylim(16, 26)
+        plt.gca().invert_yaxis()
         plt.xlabel(cmd_label, fontsize=10, ha='center')
         plt.ylabel(mag_label, fontsize=10)
         if include_title:
@@ -747,8 +747,8 @@ class PlotManager:
         fig, ax = plt.subplots(figsize=(8, 8))
         scatter = ax.scatter(color, magnitude, c=density, cmap='viridis', s=50)
         plt.colorbar(scatter, ax=ax, label='Density')
-        ax.set_xlim(-5, 6)
-        ax.set_ylim(16, 30)
+        ax.set_xlim(-2, 4)
+        ax.set_ylim(16, 26)
         ax.invert_yaxis()
         ax.set_xlabel(cmd_label)
         ax.set_ylabel(mag_label)
@@ -759,8 +759,8 @@ class PlotManager:
     def plot_color_vs_abs_mag(self, color, abs_magnitude, cmd_label, mag_label, title, include_title=True):
         fig = plt.figure(figsize=(9, 8))
         plt.scatter(color, abs_magnitude)
-        plt.xlim(-5, 6)  # Adjust these limits based on your data
-        plt.ylim(min(abs_magnitude) - 1, max(abs_magnitude) + 1)  
+        plt.xlim(-2, 4)  # Adjust these limits based on your data
+        plt.ylim(min(abs_magnitude) - 0.5, max(abs_magnitude) + 0.5)  
         plt.gca().invert_yaxis() # Invert y-axis for magnitudes
         plt.xlabel(cmd_label, fontsize=10, ha='center')
         plt.ylabel(mag_label, fontsize=10)
@@ -772,8 +772,8 @@ class PlotManager:
     def plot_mag_mag(self, blue_mag, red_mag, blue_label, red_label, title, include_title=True):
         fig = plt.figure(figsize=(8, 8))
         plt.scatter(blue_mag, red_mag)
-        plt.xlim(16, 30) #limits currently hardcoded by eye
-        plt.ylim(16, 28)
+        plt.xlim(16, 27) #limits currently hardcoded by eye
+        plt.ylim(16, 26)
         plt.gca().invert_xaxis()
         plt.gca().invert_yaxis()
         plt.xlabel(self.blue_label, fontsize=10, ha='center')
@@ -791,8 +791,8 @@ class PlotManager:
         fig, ax = plt.subplots(figsize=(8, 8))
         scatter = ax.scatter(blue_mag, red_mag, c=density, cmap='viridis', s=50)
         plt.colorbar(scatter, ax=ax, label='Density')
-        ax.set_xlim(16, 30)  # Adjust these limits based on your data
-        ax.set_ylim(16, 28)  # Adjust these limits based on your data
+        ax.set_xlim(16, 27)  # Adjust these limits based on your data
+        ax.set_ylim(16, 26)  # Adjust these limits based on your data
         ax.invert_xaxis()
         ax.invert_yaxis()
         ax.set_xlabel(self.blue_label, fontsize=10, ha='center')
@@ -821,7 +821,7 @@ class PlotManager:
             ax.plot([min_mag_0_15, min_mag_0_15], [-0.01, 0.15], color='g', linestyle='--')
             ax.text(0.95, 0.85, f'Mag @ 0.15 Unc: {min_mag_0_15:.2f}', ha='right', va='top', color='g', transform=ax.transAxes)
 
-        ax.set_xlim(16, 30)  # Adjust these limits based on your data
+        ax.set_xlim(16, 28)  # Adjust these limits based on your data
         ax.set_ylim(bottom=-0.01)  # Ensure the y-axis starts slightly below 0
         ax.set_xlabel(mag_label, fontsize=10, ha='center')
         ax.set_ylabel(unc_label, fontsize=10)
