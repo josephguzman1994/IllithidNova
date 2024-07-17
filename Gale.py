@@ -8,6 +8,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
+import pickle
+import glob
 
 # Globally define get_datasource, so all classes can use it
 # In Stellar Ages you need to define the 'Instrument' and 'Datasource'. This is redundant as the instrument defines the data source, so this definition maps the instruments to the appropriate data source
@@ -104,14 +106,16 @@ class UnpackIsoSet:
         self.photsystem = photsystem or instrument
         self.mags = mags
 
-    def get_iso_index(self, mag):
+    def get_iso_index(self, mag=None):
         index_map = {
             'WFC3_UVIS': {'F438W': 33, 'F475W': 34, 'F555W': 35, 'F606W': 36, 'F814W': 39},
             'ACS_WFC': {'F435W': 28, 'F475W': 29, 'F555W': 30, 'F606W': 31, 'F814W': 34},
             'ACS_HRC': {'F435W': 32, 'F475W': 33, 'F555W': 35, 'F606W': 36, 'F814W': 41},
             'WFPC2': {'F439W': 34, 'F450W': 35, 'F555W': 36, 'F606W': 38, 'F814W': 43}
         }
-        return index_map.get(self.photsystem, {}).get(mag, None)
+        if mag:
+            return index_map.get(self.photsystem, {}).get(mag, None)
+        return index_map.get(self.photsystem, {})
     
     def extinction_factors(self, mag):
         factors = {
@@ -155,29 +159,62 @@ class UnpackIsoSet:
         if iblue is None or ired is None:
             raise ValueError(f"Invalid magnitudes: {blue}, {red} for photometric system {self.photsystem}")
 
-        # Currently hardcoding columns read in. icol format = Mini, Mass, LogL, LogTe, chosen blue and red filters
-        # More filters available if necessary.
-        icols = [3, 5, 6, 7, iblue, ired]
+        # Currently hardcoding columns read in. icol format = Mini, Mass, LogL, LogTe
+        icols = [3, 5, 6, 7]
 
-        # Below splits the combined isochrones, into Age, Metallicity .npy combinations
+        # Create a dictionary for columns in isofile.
+        colsindex = len(icols)
+        indexdict = {'Mini': 0, 'Mass': 1, 'LogL': 2, 'LogTe': 3}
+        for key, value in self.get_iso_index().items():  # Use get_iso_index to get all indices
+            indexdict[key] = colsindex
+            colsindex += 1
+
+        # Save the dictionary to a file.
+        indexdictfile = os.path.join(self.isodir, 'indexdict.pk')
+        with open(indexdictfile, 'wb') as f:
+            pickle.dump(indexdict, f)
+
+        # Add chosen blue and red filters to icols to be stored in 'isodata'
+        icols.extend([iblue, ired])
+
+        # Below splits the combined isochrones, into Age, Metallicity .npz combinations
         isodata = []
         lastmh = -8.0
         lastlogage = 0.
         printisodata = False
+        first_isofile = None  # Initialize first_isofile
 
         for line in lines:
             if line.strip()[0] != '#':
                 temp = [float(i) for i in line.strip().split()]
                 data = [temp[i] for i in icols]
 
-                mh = temp[1]
+                mh = temp[1]+0 #Adding 0. to make sure that 0. is positive not -0.
                 logage = temp[2]
                 if (mh != lastmh or logage != lastlogage):
                     if (printisodata):
                         isodata = np.array(isodata)
                         isofile = os.path.join(self.isodir, f"Iso_{lastlogage:.2f}_{lastmh:.2f}_0.0.npz")
                         print(isofile, np.shape(isodata))
-                        np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, mags=self.mags, fblue=fblue, fred=fred)
+                        np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, indexdict=indexdict, fblue=fblue, fred=fred)
+
+                        ''' Save the structure and contents of the first isofile for inspection
+                        if first_isofile is None:
+                            first_isofile = isofile
+                            with open(f"{first_isofile}_structure.txt", 'w') as txt_file:
+                                txt_file.write(f"File: {first_isofile}\n")
+                                txt_file.write(f"Shape: {np.shape(isodata)}\n")
+                                txt_file.write("Contents:\n")
+                                np.savetxt(txt_file, isodata, fmt='%.6e')
+                                
+                                # Load the .npz file and write its contents
+                                with np.load(isofile, allow_pickle=True) as npzfile:
+                                    for key, value in npzfile.items():
+                                        txt_file.write(f"\nArray: {key}\n")
+                                        txt_file.write(f"Shape: {value.shape}\n")
+                                        if key != 'isodata':
+                                            txt_file.write(f"Data:\n{value}\n")'''
+
                     isodata = []
                     printisodata = True
                 isodata.append(data)
@@ -188,9 +225,24 @@ class UnpackIsoSet:
             isodata = np.array(isodata)
             isofile = os.path.join(self.isodir, f"Iso_{lastlogage:.2f}_{lastmh:.1f}_0.0.npz")
             print(isofile, np.shape(isodata))
-            np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, mags=self.mags, fblue=fblue, fred=fred)
+            np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, indexdict=indexdict, fblue=fblue, fred=fred)
 
-
+            ''' Save the structure and contents of the first isofile if not already saved
+            if first_isofile is None:
+                first_isofile = isofile
+                with open(f"{first_isofile}_structure.txt", 'w') as txt_file:
+                    txt_file.write(f"File: {first_isofile}\n")
+                    txt_file.write(f"Shape: {np.shape(isodata)}\n")
+                    txt_file.write("Contents:\n")
+                    np.savetxt(txt_file, isodata, fmt='%.6e')
+                    
+                    # Load the .npz file and write its contents
+                    with np.load(isofile, allow_pickle=True) as npzfile:
+                        for key, value in npzfile.items():
+                            txt_file.write(f"\nArray: {key}\n")
+                            txt_file.write(f"Shape: {value.shape}\n")
+                            if key != 'isodata':
+                                txt_file.write(f"Data:\n{value}\n")'''
 
 class IsochroneAnalyzer:
     def __init__(self, isodir, instrument, datasource):
@@ -587,7 +639,19 @@ async def main():
         mags = [available_filters[blue_idx], available_filters[red_idx]]
         unpacker.mags = mags
 
-        isosetfile = os.getenv('ISOSETFILE', input("Enter the isochrone set file name: "))
+        # List all .set files in the working directory
+        set_files = glob.glob("*.set")
+        print("Available .set files:")
+        for idx, set_file in enumerate(set_files):
+            print(f"{idx}: {set_file}")
+        print(f"{len(set_files)}: Enter the filename manually")
+
+        file_choice = int(input("Enter the index of the .set file to unpack: "))
+        if file_choice == len(set_files):
+            isosetfile = input("Enter the isochrone set file name: ")
+        else:
+            isosetfile = set_files[file_choice]
+
         unpacker.read_iso_set(isosetfile)
 
     # This argument will check the max isochrone age you should consider based on several parameters
