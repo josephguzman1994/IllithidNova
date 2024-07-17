@@ -198,7 +198,7 @@ class UnpackIsoSet:
                         print(isofile, np.shape(isodata))
                         np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, indexdict=indexdict, fblue=fblue, fred=fred)
 
-                        # Save the structure and contents of the first isofile
+                        '''# Save the structure and contents of the first isofile
                         if first_isofile is None:
                             first_isofile = isofile
                             with open(f"{first_isofile}_structure.txt", 'w') as txt_file:
@@ -213,7 +213,7 @@ class UnpackIsoSet:
                                         txt_file.write(f"\nArray: {key}\n")
                                         txt_file.write(f"Shape: {value.shape}\n")
                                         if key != 'isodata':
-                                            txt_file.write(f"Data:\n{value}\n")
+                                            txt_file.write(f"Data:\n{value}\n")'''
 
                     isodata = []
                     printisodata = True
@@ -227,7 +227,7 @@ class UnpackIsoSet:
             print(isofile, np.shape(isodata))
             np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, indexdict=indexdict, fblue=fblue, fred=fred)
 
-            # Save the structure and contents of the first isofile if not already saved
+            '''# Save the structure and contents of the first isofile if not already saved
             if first_isofile is None:
                 first_isofile = isofile
                 with open(f"{first_isofile}_structure.txt", 'w') as txt_file:
@@ -242,7 +242,7 @@ class UnpackIsoSet:
                             txt_file.write(f"\nArray: {key}\n")
                             txt_file.write(f"Shape: {value.shape}\n")
                             if key != 'isodata':
-                                txt_file.write(f"Data:\n{value}\n")
+                                txt_file.write(f"Data:\n{value}\n")'''
 
 class IsochroneAnalyzer:
     def __init__(self, isodir, instrument, datasource):
@@ -293,8 +293,6 @@ class IsochroneAnalyzer:
         self.list_available_filters()
         blue_mag = input("Enter the blue filter (e.g., F435W, F475W): ")
 
-        # Assuming the structure of isodata is: "Mini", "Mass", "LogL", "LogTe", "blue magnitude", "red magnitude"
-        iblue = 4
         bluemin_global = -99.
         # Initialize ages we may want to exclude from the analysis
         excluded_ages = []
@@ -316,11 +314,17 @@ class IsochroneAnalyzer:
                         isofile = os.path.join(self.isodir, f"Iso_{formatted_age}_{formatted_z}_0.0.npz")
                         
                         if os.path.exists(isofile):
-                            with np.load(isofile) as data:
+                            with np.load(isofile, allow_pickle=True) as data:
                                 isodata = data['isodata']
                                 
-                                # Assuming the structure of isodata is: "Mini", "Mass", "LogL", "LogTe", "blue magnitude", "red magnitude"
-                                iblue = 4
+                                # Determine the index for the blue magnitude
+                                indexdict = data['indexdict'].item()  # Assuming indexdict is stored in the .npz file
+                                iblue = indexdict.get(blue_mag)
+
+                                if iblue is None:
+                                    print(f"Error: Invalid blue magnitude {blue_mag} for the given isodata.")
+                                    continue
+                                
                                 bluemin = np.min(isodata[:, iblue] + mu)
                                 bluemin_global = max(bluemin_global, bluemin)
                                 output = f'age = {formatted_age} z = {formatted_z} bluemin = {bluemin}'
@@ -365,7 +369,7 @@ class IsochroneAnalyzer:
             
             if os.path.exists(isofile):
                 print(f"Loading file: {isofile}")  # Debug print
-                with np.load(isofile) as data:
+                with np.load(isofile, allow_pickle=True) as data:
                     isodata = data['isodata']
                     print(f"Loaded isodata shape: {isodata.shape}")  # Debug print
 
@@ -380,9 +384,14 @@ class IsochroneAnalyzer:
                     #    txt_file.write(f"fred: {fred}\n")
                     #print(f"Data saved to {txt_filename}")
 
-                    # Assuming the structure of isodata is: "Mini", "Mass", "LogL", "LogTe", "blue magnitude", "red magnitude"
-                    blue_index = 4
-                    red_index = 5
+                    # Determine the indices for the blue and red magnitudes
+                    indexdict = data['indexdict'].item()  # Assuming indexdict is stored in the .npz file
+                    blue_index = indexdict.get(blue_mag)
+                    red_index = indexdict.get(red_mag)
+
+                    if blue_index is None or red_index is None:
+                        print(f"Error: Invalid magnitudes {blue_mag} or {red_mag} for the given isodata.")
+                        continue
 
                     color = isodata[:, blue_index] - isodata[:, red_index]
                     magnitude = isodata[:, red_index]
@@ -409,12 +418,18 @@ class IsochroneAnalyzer:
             formatted_z = f"{float(z):.2f}"
             isofile = os.path.join(isodir, f"Iso_{formatted_age}_{formatted_z}_0.0.npz")
             if os.path.exists(isofile):
-                with np.load(isofile) as data:
+                with np.load(isofile, allow_pickle=True) as data:
                     isodata = data['isodata']
                     
-                    # Assuming the structure of isodata is: "Mini", "Mass", "LogL", "LogTe", "blue magnitude", "red magnitude"
-                    blue_index = 4
-                    red_index = 5
+                    # Determine the indices for the blue and red magnitudes
+                    indexdict = data['indexdict'].item()  # Assuming indexdict is stored in the .npz file
+                    blue_index = indexdict.get(blue_mag)
+                    red_index = indexdict.get(red_mag)
+
+                    if blue_index is None or red_index is None:
+                        print(f"Error: Invalid magnitudes {blue_mag} or {red_mag} for the given isodata.")
+                        continue
+
                     color = isodata[:, blue_index] - isodata[:, red_index]
                     magnitude = isodata[:, red_index]
                     plot_color = cmap(index / num_zs)
@@ -446,12 +461,18 @@ class IsochroneAnalyzer:
         formatted_z = f"{float(z):.2f}"
         isofile = os.path.join(isodir, f"Iso_{formatted_age}_{formatted_z}_0.0.npz")
         if os.path.exists(isofile):
-            with np.load(isofile) as data:
+            with np.load(isofile, allow_pickle=True) as data:
                 isodata = data['isodata']
                 
-                # Assuming the structure of isodata is: "Mini", "Mass", "LogL", "LogTe", "blue magnitude", "red magnitude"
-                blue_index = 4
-                red_index = 5
+                # Determine the indices for the blue and red magnitudes
+                indexdict = data['indexdict'].item()  # Assuming indexdict is stored in the .npz file
+                blue_index = indexdict.get(blue_mag)
+                red_index = indexdict.get(red_mag)
+
+                if blue_index is None or red_index is None:
+                    print(f"Error: Invalid magnitudes {blue_mag} or {red_mag} for the given isodata.")
+                    return
+
                 color = isodata[:, blue_index] - isodata[:, red_index]
                 magnitude = isodata[:, red_index]
                 plt.plot(color, magnitude, label=f'Age = {age}, Z = {z}')
