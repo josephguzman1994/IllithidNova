@@ -174,8 +174,8 @@ class UnpackIsoSet:
         with open(indexdictfile, 'wb') as f:
             pickle.dump(indexdict, f)
 
-        # Add chosen blue and red filters to icols to be stored in 'isodata'
-        icols.extend([iblue, ired])
+        magindices = list(self.get_iso_index().values())
+        icols.extend(magindices)
 
         # Below splits the combined isochrones, into Age, Metallicity .npz combinations
         isodata = []
@@ -198,7 +198,7 @@ class UnpackIsoSet:
                         print(isofile, np.shape(isodata))
                         np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, indexdict=indexdict, fblue=fblue, fred=fred)
 
-                        ''' Save the structure and contents of the first isofile for inspection
+                        # Save the structure and contents of the first isofile
                         if first_isofile is None:
                             first_isofile = isofile
                             with open(f"{first_isofile}_structure.txt", 'w') as txt_file:
@@ -213,7 +213,7 @@ class UnpackIsoSet:
                                         txt_file.write(f"\nArray: {key}\n")
                                         txt_file.write(f"Shape: {value.shape}\n")
                                         if key != 'isodata':
-                                            txt_file.write(f"Data:\n{value}\n")'''
+                                            txt_file.write(f"Data:\n{value}\n")
 
                     isodata = []
                     printisodata = True
@@ -227,7 +227,7 @@ class UnpackIsoSet:
             print(isofile, np.shape(isodata))
             np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, indexdict=indexdict, fblue=fblue, fred=fred)
 
-            ''' Save the structure and contents of the first isofile if not already saved
+            # Save the structure and contents of the first isofile if not already saved
             if first_isofile is None:
                 first_isofile = isofile
                 with open(f"{first_isofile}_structure.txt", 'w') as txt_file:
@@ -242,7 +242,7 @@ class UnpackIsoSet:
                             txt_file.write(f"\nArray: {key}\n")
                             txt_file.write(f"Shape: {value.shape}\n")
                             if key != 'isodata':
-                                txt_file.write(f"Data:\n{value}\n")'''
+                                txt_file.write(f"Data:\n{value}\n")
 
 class IsochroneAnalyzer:
     def __init__(self, isodir, instrument, datasource):
