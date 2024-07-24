@@ -616,7 +616,7 @@ class PlotManager:
         red, red_unc, red_sn, red_sharp = data[:, 7], data[:, 8], data[:, 9], data[:, 10]
 
         # Prepare dynamic labels
-        self.cmd_label = (columns_data[15].split(', ')[1] + '-' + columns_data[28].split(', ')[1]).strip()
+        self.cmd_label = (columns_data[15].split(', ')[1] + '- ' + columns_data[28].split(', ')[1]).strip()
         self.blue_label, self.red_label = columns_data[15].split(', ')[1].strip(), columns_data[28].split(', ')[1].strip()
         self.blue_abs_cut_label, self.red_abs_cut_label = (columns_data[15].split(', ')[1].strip()+'[Abs]'), (columns_data[28].split(', ')[1].strip()+'[Abs]')
         self.blue_unc_label, self.red_unc_label = (columns_data[17].split(', ')[1] + ' Uncertainty').strip(), (columns_data[30].split(', ')[1] + ' Uncertainty').strip()
@@ -705,6 +705,7 @@ class PlotManager:
     #Things to pass to each plot.
     
     def set_axes_limits(self, data, lower_percentile=-50, upper_percentile=150):
+        # Currently not using this definition, keeping for potential future use. Would allow automatically defining axes limits
         lower_bound = np.percentile(data, max(0, lower_percentile))
         upper_bound = np.percentile(data, min(100, upper_percentile))
         
@@ -717,6 +718,7 @@ class PlotManager:
         return lower_bound, upper_bound
 
     def plot_cmd(self, color, magnitude, cmd_label, mag_label, title, include_title=True):
+        cmd_label = cmd_label.replace('\n', ' ')
         #print(f"Debug: Length of color array: {len(color)}, Length of magnitude array: {len(magnitude)}")
         if len(color) != len(magnitude):
             raise ValueError("Color and magnitude arrays do not match in length.")
@@ -732,13 +734,15 @@ class PlotManager:
         plt.xlim(-2, 4) #limits currently hardcoded by eye
         plt.ylim(16, 26)
         plt.gca().invert_yaxis()
-        plt.xlabel(cmd_label, fontsize=10, ha='center')
-        plt.ylabel(mag_label, fontsize=10)
+        plt.xlabel(cmd_label, fontsize=12, ha='center')
+        plt.ylabel(mag_label, fontsize=12)
+        
         if include_title:
             plt.title(title)
         return fig
 
     def plot_cmd_density(self, color, magnitude, cmd_label, mag_label, title, include_title=True):
+        cmd_label = cmd_label.replace('\n', ' ')
         # Calculate the point density
         xy = np.vstack([color, magnitude])
         kde = gaussian_kde(xy)
@@ -750,20 +754,27 @@ class PlotManager:
         ax.set_xlim(-2, 4)
         ax.set_ylim(16, 26)
         ax.invert_yaxis()
-        ax.set_xlabel(cmd_label)
-        ax.set_ylabel(mag_label)
+        ax.set_xlabel(cmd_label, fontsize=12)
+        ax.set_ylabel(mag_label, fontsize=12)
+        # Adjust tick label font size
+        ax.tick_params(axis='both', which='major', labelsize=12)  # Change 14 to your desired font size
+        
         if include_title:
             ax.set_title(title)
         return fig
 
     def plot_color_vs_abs_mag(self, color, abs_magnitude, cmd_label, mag_label, title, include_title=True):
+        cmd_label = cmd_label.replace('\n', ' ')
         fig = plt.figure(figsize=(9, 8))
         plt.scatter(color, abs_magnitude)
         plt.xlim(-2, 4)  # Adjust these limits based on your data
         plt.ylim(min(abs_magnitude) - 0.5, max(abs_magnitude) + 0.5)  
         plt.gca().invert_yaxis() # Invert y-axis for magnitudes
-        plt.xlabel(cmd_label, fontsize=10, ha='center')
-        plt.ylabel(mag_label, fontsize=10)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.xlabel(cmd_label, fontsize=12, ha='center')
+        plt.ylabel(mag_label, fontsize=12)
+        
         if include_title:
             plt.title(title)
         plt.tight_layout()
@@ -776,8 +787,11 @@ class PlotManager:
         plt.ylim(16, 26)
         plt.gca().invert_xaxis()
         plt.gca().invert_yaxis()
-        plt.xlabel(self.blue_label, fontsize=10, ha='center')
-        plt.ylabel(self.red_label, fontsize=10)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.xlabel(self.blue_label, fontsize=12, ha='center')
+        plt.ylabel(self.red_label, fontsize=12)
+        
         if include_title:
             plt.title(title)
         return fig
@@ -795,8 +809,11 @@ class PlotManager:
         ax.set_ylim(16, 26)  # Adjust these limits based on your data
         ax.invert_xaxis()
         ax.invert_yaxis()
-        ax.set_xlabel(self.blue_label, fontsize=10, ha='center')
-        ax.set_ylabel(self.red_label, fontsize=10)
+        ax.set_xlabel(self.blue_label, fontsize=12, ha='center')
+        ax.set_ylabel(self.red_label, fontsize=12)
+        # Adjust tick label font size
+        ax.tick_params(axis='both', which='major', labelsize=12)  # Change 14 to your desired font size
+        
         if include_title:
             ax.set_title(title)
         return fig
@@ -823,8 +840,11 @@ class PlotManager:
 
         ax.set_xlim(16, 28)  # Adjust these limits based on your data
         ax.set_ylim(bottom=-0.01)  # Ensure the y-axis starts slightly below 0
-        ax.set_xlabel(mag_label, fontsize=10, ha='center')
-        ax.set_ylabel(unc_label, fontsize=10)
+        ax.set_xlabel(mag_label, fontsize=12, ha='center')
+        ax.set_ylabel(unc_label, fontsize=12)
+        # Adjust tick label font size
+        ax.tick_params(axis='both', which='major', labelsize=14)  # Change 14 to your desired font size
+        
         if include_title:
             ax.set_title(title)
         ax.legend()
@@ -842,8 +862,10 @@ class PlotManager:
         fig = plt.figure(figsize=(8, 8))
         plt.scatter(ra, dec, alpha=0.6)
         plt.scatter(sn_ra, sn_dec, color='red', marker='*', label=f"{obj_name}")
-        plt.xlabel('RA (deg)')
-        plt.ylabel('Dec (deg)')
+        plt.xlabel('RA (deg)', fontsize=12)
+        plt.ylabel('Dec (deg)', fontsize=12)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
         if include_title:
             plt.title(title)
         plt.gca().xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x + base_offset:.3f}'))
@@ -869,8 +891,11 @@ class PlotManager:
         fig = plt.figure(figsize=(8, 8))
         plt.scatter(ra, dec, s=sizes, alpha=0.6)  # Use calculated sizes
         plt.scatter(sn_ra, sn_dec, color='red', marker='*', label=f"{obj_name}", s=200)  # Supernova with fixed larger size
-        plt.xlabel('RA (deg)')
-        plt.ylabel('Dec (deg)')
+        plt.xlabel('RA (deg)', fontsize=12)
+        plt.ylabel('Dec (deg)', fontsize=12)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        
         if include_title:
             plt.title(title)
         plt.gca().xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x + base_offset:.3f}'))
