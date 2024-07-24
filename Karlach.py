@@ -723,7 +723,7 @@ class PlotManager:
         if len(color) != len(magnitude):
             raise ValueError("Color and magnitude arrays do not match in length.")
         fig = plt.figure(figsize=(9, 8))
-        plt.scatter(color, magnitude)
+        plt.scatter(color, magnitude, s=50, alpha=0.6)
 
         # Automatically set axes limits
         #x_lower, x_upper = self.set_axes_limits(color)
@@ -766,7 +766,7 @@ class PlotManager:
     def plot_color_vs_abs_mag(self, color, abs_magnitude, cmd_label, mag_label, title, include_title=True):
         cmd_label = cmd_label.replace('\n', ' ')
         fig = plt.figure(figsize=(9, 8))
-        plt.scatter(color, abs_magnitude)
+        plt.scatter(color, abs_magnitude, s=50, alpha=0.6)
         plt.xlim(-2, 4)  # Adjust these limits based on your data
         plt.ylim(min(abs_magnitude) - 0.5, max(abs_magnitude) + 0.5)  
         plt.gca().invert_yaxis() # Invert y-axis for magnitudes
@@ -782,7 +782,7 @@ class PlotManager:
 
     def plot_mag_mag(self, blue_mag, red_mag, blue_label, red_label, title, include_title=True):
         fig = plt.figure(figsize=(8, 8))
-        plt.scatter(blue_mag, red_mag)
+        plt.scatter(blue_mag, red_mag, s=50, alpha=0.6)
         plt.xlim(16, 27) #limits currently hardcoded by eye
         plt.ylim(16, 26)
         plt.gca().invert_xaxis()
@@ -820,7 +820,7 @@ class PlotManager:
 
     def plot_uncertainty(self, mag, unc, mag_label, unc_label, title, include_title=True):
         fig, ax = plt.subplots(figsize=(8, 8))
-        ax.scatter(mag, unc)
+        ax.scatter(mag, unc, s=50, alpha=0.6)
         
         # Find the lowest magnitude point with uncertainty >= 0.10
         mag_0_10 = mag[unc >= 0.10]
@@ -860,7 +860,7 @@ class PlotManager:
         base_dec_offset = 65.6 - base_dec #Currently hardcoding offset for clean tick labels
 
         fig = plt.figure(figsize=(8, 8))
-        plt.scatter(ra, dec, alpha=0.6)
+        plt.scatter(ra, dec, s=40, alpha=0.6)
         plt.scatter(sn_ra, sn_dec, color='red', marker='*', label=f"{obj_name}")
         plt.xlabel('RA (deg)', fontsize=12)
         plt.ylabel('Dec (deg)', fontsize=12)
