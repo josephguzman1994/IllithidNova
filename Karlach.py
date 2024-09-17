@@ -10,6 +10,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from astropy.wcs import WCS
 from astropy.io import fits
 from astropy import units as u
+from astropy.visualization import astropy_mpl_style, ZScaleInterval, AsinhStretch
+from astropy.visualization.mpl_normalize import ImageNormalize
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import Angle
 from astroquery.simbad import Simbad
@@ -23,8 +25,79 @@ from os import system
 import subprocess
 import glob
 
+# Plotting the raw sky image from the fits file, currently coded up for ACS HRC imager
+class RawSkyPlotter:
+    def __init__(self, fits_file):
+        self.fits_file = fits_file
+
+    def plot_raw_sky(self):
+        # Set up the plot style
+        plt.style.use(astropy_mpl_style)
+
+        # Open the FITS file
+        with fits.open(self.fits_file) as hdul:
+            hdu = hdul[1]
+            image_data = hdu.data
+            wcs = WCS(hdu.header)
+
+        # Set up scaling
+        zscale = ZScaleInterval()
+        norm = ImageNormalize(image_data, interval=zscale, stretch=AsinhStretch())
+
+        # Create the plot with two subplots
+        fig = plt.figure(figsize=(24, 10))
+        fig.patch.set_facecolor('black')
+
+        # Function to style axes
+        def style_axes(ax, title):
+            ax.set_facecolor('black')
+            ax.set_title(title, color='white', fontsize=16)
+            ax.tick_params(colors='white')
+            ax.xaxis.label.set_color('white')
+            ax.yaxis.label.set_color('white')
+
+        # Plot 1: Pixel coordinates
+        ax1 = fig.add_subplot(121)
+        im1 = ax1.imshow(image_data, cmap='viridis', origin='lower', norm=norm)
+        style_axes(ax1, 'HST ACS HRC Image (Pixel Coordinates)')
+        ax1.set_xlabel('Pixels', color='white', fontsize=12)
+        ax1.set_ylabel('Pixels', color='white', fontsize=12)
+        fig.colorbar(im1, ax=ax1, label='Flux', pad=0.01)
+
+        # Plot 2: RA and Dec coordinates
+        ax2 = fig.add_subplot(122, projection=wcs)
+        im2 = ax2.imshow(image_data, cmap='viridis', origin='lower', norm=norm)
+        ax2.grid(color='white', alpha=0.5, linestyle='solid')
+        ax2.set_xlabel('RA', color='white', fontsize=12)
+        ax2.set_ylabel('Dec', color='white', fontsize=12)
+        style_axes(ax2, 'HST ACS HRC Image (RA and Dec)')
+        fig.colorbar(im2, ax=ax2, label='Flux', pad=0.01)
+
+        # Add SN 2004dj position
+        sn_coord = SkyCoord('07h37m17.0432126424s +65d35m57.826001220s', frame='icrs')
+        ax2.scatter(sn_coord.ra.deg, sn_coord.dec.deg, transform=ax2.get_transform('world'),
+                    s=100, color='red', marker='x', label='SN 2004dj')
+        ax2.annotate('SN 2004dj', xy=(sn_coord.ra.deg, sn_coord.dec.deg), xytext=(10, 10),
+                     textcoords='offset points', color='black', fontsize=12,
+                     xycoords=ax2.get_transform('world'),
+                     arrowprops=dict(arrowstyle="->", color='black'))
+
+        ax2.legend(loc='upper left', fontsize=12, facecolor='black', edgecolor='white', labelcolor='white')
+
+        # Adjust layout and save
+        plt.tight_layout()
+        output_file = 'hst_night_sky_image_comparison_with_sn.png'
+        plt.savefig(output_file, dpi=300, bbox_inches='tight', facecolor='black', edgecolor='none')
+        plt.close()
+
+        print(f"Image saved as '{output_file}'")
+
 # Coding up the automation of the dolphot processing: Written by Joseph Guzman @josephguzman1994@gmail.com
 class TerminalCommandExecutor:
+
+    def plot_raw_sky(self, fits_file):
+        plotter = RawSkyPlotter(fits_file)
+        plotter.plot_raw_sky()
     
     # Step 0: if you used a different photometric system on your last use of dolphot, you need to run 'make clean' and 'make' in 'makefile' directory
     # Called with --make argument
@@ -616,7 +689,7 @@ class PlotManager:
         red, red_unc, red_sn, red_sharp = data[:, 7], data[:, 8], data[:, 9], data[:, 10]
 
         # Prepare dynamic labels
-        self.cmd_label = (columns_data[15].split(', ')[1] + '- ' + columns_data[28].split(', ')[1]).strip()
+        self.cmd_label = (columns_data[15].split(', ')[1] + '-' + columns_data[28].split(', ')[1]).strip()
         self.blue_label, self.red_label = columns_data[15].split(', ')[1].strip(), columns_data[28].split(', ')[1].strip()
         self.blue_abs_cut_label, self.red_abs_cut_label = (columns_data[15].split(', ')[1].strip()+'[Abs]'), (columns_data[28].split(', ')[1].strip()+'[Abs]')
         self.blue_unc_label, self.red_unc_label = (columns_data[17].split(', ')[1] + ' Uncertainty').strip(), (columns_data[30].split(', ')[1] + ' Uncertainty').strip()
@@ -723,7 +796,7 @@ class PlotManager:
         if len(color) != len(magnitude):
             raise ValueError("Color and magnitude arrays do not match in length.")
         fig = plt.figure(figsize=(9, 8))
-        plt.scatter(color, magnitude, s=50, alpha=0.6)
+        plt.scatter(color, magnitude)
 
         # Automatically set axes limits
         #x_lower, x_upper = self.set_axes_limits(color)
@@ -742,7 +815,6 @@ class PlotManager:
         return fig
 
     def plot_cmd_density(self, color, magnitude, cmd_label, mag_label, title, include_title=True):
-        cmd_label = cmd_label.replace('\n', ' ')
         # Calculate the point density
         xy = np.vstack([color, magnitude])
         kde = gaussian_kde(xy)
@@ -764,9 +836,8 @@ class PlotManager:
         return fig
 
     def plot_color_vs_abs_mag(self, color, abs_magnitude, cmd_label, mag_label, title, include_title=True):
-        cmd_label = cmd_label.replace('\n', ' ')
         fig = plt.figure(figsize=(9, 8))
-        plt.scatter(color, abs_magnitude, s=50, alpha=0.6)
+        plt.scatter(color, abs_magnitude)
         plt.xlim(-2, 4)  # Adjust these limits based on your data
         plt.ylim(min(abs_magnitude) - 0.5, max(abs_magnitude) + 0.5)  
         plt.gca().invert_yaxis() # Invert y-axis for magnitudes
@@ -782,7 +853,7 @@ class PlotManager:
 
     def plot_mag_mag(self, blue_mag, red_mag, blue_label, red_label, title, include_title=True):
         fig = plt.figure(figsize=(8, 8))
-        plt.scatter(blue_mag, red_mag, s=50, alpha=0.6)
+        plt.scatter(blue_mag, red_mag)
         plt.xlim(16, 27) #limits currently hardcoded by eye
         plt.ylim(16, 26)
         plt.gca().invert_xaxis()
@@ -820,7 +891,7 @@ class PlotManager:
 
     def plot_uncertainty(self, mag, unc, mag_label, unc_label, title, include_title=True):
         fig, ax = plt.subplots(figsize=(8, 8))
-        ax.scatter(mag, unc, s=50, alpha=0.6)
+        ax.scatter(mag, unc)
         
         # Find the lowest magnitude point with uncertainty >= 0.10
         mag_0_10 = mag[unc >= 0.10]
@@ -860,7 +931,7 @@ class PlotManager:
         base_dec_offset = 65.6 - base_dec #Currently hardcoding offset for clean tick labels
 
         fig = plt.figure(figsize=(8, 8))
-        plt.scatter(ra, dec, s=40, alpha=0.6)
+        plt.scatter(ra, dec, alpha=0.6)
         plt.scatter(sn_ra, sn_dec, color='red', marker='*', label=f"{obj_name}")
         plt.xlabel('RA (deg)', fontsize=12)
         plt.ylabel('Dec (deg)', fontsize=12)
@@ -1069,6 +1140,7 @@ class PlotManager:
 
 def main():
     parser = argparse.ArgumentParser(description="Dolphot Automation Tool")
+    parser.add_argument('--rawskyplot', type=str, help='Plot raw sky image from FITS file')
     parser.add_argument('--make', action='store_true', help='Run "make clean" and "make" in the dolphot makefile directory.')
     parser.add_argument('--param', action='store_true', help='Create the parameter file for dolphot')
     parser.add_argument('--customize-img', action='store_true', help='Customize individual image parameters interactively')
@@ -1084,6 +1156,10 @@ def main():
     args = parser.parse_args()
 
     organizer = DataFilterOrganizer()
+
+    if args.rawskyplot:
+        executor = TerminalCommandExecutor()
+        executor.plot_raw_sky(args.rawskyplot)
 
     # Run 'make clean' and 'make' to initialize dolphot to use different photometric systems
     if args.make:
