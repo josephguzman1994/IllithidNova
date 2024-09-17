@@ -42,7 +42,8 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   ## Usage
   
   Below are the command-line arguments available in `Karlach.py`:
-  
+
+  -`--rawskyplot`: Takes in a raw .fits file and plots the pixel and RA/Dec image with normalized flux density.
   - `--make`: Runs "make clean" and "make" in the DOLPHOT Makefile directory to prepare the system for DOLPHOT processing.
   - `--param`: Creates a parameter file for DOLPHOT based on the current configuration.
   - `--customize-img`: Enables interactive customization of individual image parameters.
@@ -100,6 +101,8 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   
   Here are some example commands to get you started:
   bash
+  #### Plot sky image from raw .fits file
+  ```python Karlach.py --rawskyplot /path/to/your/.fits/file```
   #### Run make clean, and make (prepare to use new photometric system with DOLPHOT)
   ```python Karlach.py --make```
   #### Execute DOLPHOT processing
