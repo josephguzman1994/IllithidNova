@@ -600,7 +600,7 @@ class DataFilterOrganizer:
                     output.write("\t--------------------------------------------------\n")
 
 class PlotManager:
-    def __init__(self, config, obj_name, distance, proximity_thresholds, pdf=None, data_dir=None, use_brightest_star=False):
+    def __init__(self, config, obj_name, distance, proximity_thresholds, pdf=False, data_dir=None, use_brightest_star=False):
         
         if not isinstance(config, configparser.ConfigParser):
             raise ValueError("Config must be an instance of configparser.ConfigParser")
@@ -1219,7 +1219,7 @@ def main():
     parser.add_argument('--phot', action='store_true', help='Make several plots from the output dolphot photometry')
     parser.add_argument('--save_data', action='store_true', help='Save quality and distance filtered datasets to .txt and .npy files')
     parser.add_argument('--no_titles', action='store_true', help='Generate plots without titles for publication')
-    parser.add_argument('--pdf', type=str, help='Output PDF files to save the plots')
+    parser.add_argument('--pdf', action='store_true', help='Output PDF files to save the plots')
     parser.add_argument('--use_brightest_star', action='store_true', help='Use brightest star instead of catalogue position for special marker')
     args = parser.parse_args()
 
