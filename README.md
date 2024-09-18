@@ -43,7 +43,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   
   Below are the command-line arguments available in `Karlach.py`:
 
-  -`--rawskyplot`: Takes in a raw .fits file and plots the pixel and RA/Dec image with normalized flux density.
+  - `--rawskyplot`: Takes in a raw .fits file and plots the pixel and RA/Dec image with normalized flux density.
   - `--make`: Runs "make clean" and "make" in the DOLPHOT Makefile directory to prepare the system for DOLPHOT processing.
   - `--param`: Creates a parameter file for DOLPHOT based on the current configuration.
   - `--customize-img`: Enables interactive customization of individual image parameters.
@@ -56,6 +56,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   - `--no_titles`: Removes any dynamically generated title information from plots in preparation for scientific publication
   - `--save_data`: Saves quality and distance filtered data sets to file.
   - `--pdf`: Specifies the plot outputs to PDF file, rather than display.
+  - `--use_brightest_star`: Instead of querying the SIMBAD catalogue for the SN location marker, use the brightest star instead.
   
   ## Configuration
   
@@ -110,7 +111,9 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   #### Generate the dolphot parameter file by itself, assuming preprocessing (mask, splitgroups, calcsky) have been done separately.
   ```python Karlach.py --param```
   #### Save dolphot photometry data with quality and distance masks, and plot the freshly made data sets to .pdf
-  ```python Karlach.py --save_data --phot --pdf test.pdf```
+  ```python Karlach.py --save_data --phot --pdf```
+  #### Plot the already saved datasets for scientific publication, also use the brightest star instead of SIMBAD coordinates
+  ``` python3 Karlach.py --phot --no_titles --use_brightest_star --pdf```
   
   ## Notes
   - Executing ```--make``` assumes you have dolphot2.0 installed, as well as the necessary PSF and PAM files for your images. Verify that your 'Makefile' is in your /dolphot2.0/ directory.
