@@ -600,7 +600,7 @@ class DataFilterOrganizer:
                     output.write("\t--------------------------------------------------\n")
 
 class PlotManager:
-    def __init__(self, config, obj_name, distance, proximity_thresholds, pdf=None, data_dir=None):
+    def __init__(self, config, obj_name, distance, proximity_thresholds, pdf=None, data_dir=None, use_brightest_star=False):
         
         if not isinstance(config, configparser.ConfigParser):
             raise ValueError("Config must be an instance of configparser.ConfigParser")
@@ -611,6 +611,9 @@ class PlotManager:
         self.proximity_thresholds = proximity_thresholds
         self.pdf = pdf
         self.data_dir = data_dir
+        self.use_brightest_star = use_brightest_star
+        self.blue_cut = None
+        self.red_cut = None
 
         # Assuming you ran --dolphot, the code will automatically write phot_file and ref_file to config.ini for you,
         # if you immediately run --phot. Alternatively, you can choose to define phot_file and ref_file in config.ini manually
@@ -735,6 +738,9 @@ class PlotManager:
             ra_cut = ra_all[combined_mask]
             dec_cut = dec_all[combined_mask]
 
+            self.blue_cut = blue_cut
+            self.red_cut = red_cut
+
             results.append((x_cut, y_cut, blue_cut, red_cut, blue_unc_cut, red_unc_cut, color_filtered, self.cmd_label, self.red_label, self.blue_label, self.red_abs_cut_label, self.blue_abs_cut_label, self.red_unc_label, self.blue_unc_label, ra_cut, dec_cut, blue_abs_cut, red_abs_cut))
 
         return results
@@ -796,7 +802,7 @@ class PlotManager:
         if len(color) != len(magnitude):
             raise ValueError("Color and magnitude arrays do not match in length.")
         fig = plt.figure(figsize=(9, 8))
-        plt.scatter(color, magnitude)
+        plt.scatter(color, magnitude, alpha=0.7)
 
         # Automatically set axes limits
         #x_lower, x_upper = self.set_axes_limits(color)
@@ -804,8 +810,8 @@ class PlotManager:
         #plt.xlim(x_lower, x_upper)
         #plt.ylim(y_upper, y_lower)  # Invert y-axis for magnitudes
 
-        plt.xlim(-2, 4) #limits currently hardcoded by eye
-        plt.ylim(16, 26)
+        plt.xlim(-1, 4) #limits currently hardcoded by eye
+        plt.ylim(19.5, 25.5)
         plt.gca().invert_yaxis()
         plt.xlabel(cmd_label, fontsize=12, ha='center')
         plt.ylabel(mag_label, fontsize=12)
@@ -821,10 +827,10 @@ class PlotManager:
         density = kde(xy)
 
         fig, ax = plt.subplots(figsize=(8, 8))
-        scatter = ax.scatter(color, magnitude, c=density, cmap='viridis', s=50)
+        scatter = ax.scatter(color, magnitude, c=density, cmap='viridis', s=50, alpha=0.7)
         plt.colorbar(scatter, ax=ax, label='Density')
-        ax.set_xlim(-2, 4)
-        ax.set_ylim(16, 26)
+        ax.set_xlim(-1, 4)
+        ax.set_ylim(19.5, 25.5)
         ax.invert_yaxis()
         ax.set_xlabel(cmd_label, fontsize=12)
         ax.set_ylabel(mag_label, fontsize=12)
@@ -837,7 +843,7 @@ class PlotManager:
 
     def plot_color_vs_abs_mag(self, color, abs_magnitude, cmd_label, mag_label, title, include_title=True):
         fig = plt.figure(figsize=(9, 8))
-        plt.scatter(color, abs_magnitude)
+        plt.scatter(color, abs_magnitude, alpha=0.7)
         plt.xlim(-2, 4)  # Adjust these limits based on your data
         plt.ylim(min(abs_magnitude) - 0.5, max(abs_magnitude) + 0.5)  
         plt.gca().invert_yaxis() # Invert y-axis for magnitudes
@@ -853,9 +859,9 @@ class PlotManager:
 
     def plot_mag_mag(self, blue_mag, red_mag, blue_label, red_label, title, include_title=True):
         fig = plt.figure(figsize=(8, 8))
-        plt.scatter(blue_mag, red_mag)
-        plt.xlim(16, 27) #limits currently hardcoded by eye
-        plt.ylim(16, 26)
+        plt.scatter(blue_mag, red_mag, alpha=0.7)
+        plt.xlim(20, 26) #limits currently hardcoded by eye
+        plt.ylim(19.5, 25.5)
         plt.gca().invert_xaxis()
         plt.gca().invert_yaxis()
         plt.xticks(fontsize=12)
@@ -874,10 +880,10 @@ class PlotManager:
         density = kde(xy)
 
         fig, ax = plt.subplots(figsize=(8, 8))
-        scatter = ax.scatter(blue_mag, red_mag, c=density, cmap='viridis', s=50)
+        scatter = ax.scatter(blue_mag, red_mag, c=density, cmap='viridis', s=50, alpha=0.7)
         plt.colorbar(scatter, ax=ax, label='Density')
-        ax.set_xlim(16, 27)  # Adjust these limits based on your data
-        ax.set_ylim(16, 26)  # Adjust these limits based on your data
+        ax.set_xlim(20, 26)  # Adjust these limits based on your data
+        ax.set_ylim(19.5, 25.5)  # Adjust these limits based on your data
         ax.invert_xaxis()
         ax.invert_yaxis()
         ax.set_xlabel(self.blue_label, fontsize=12, ha='center')
@@ -922,7 +928,7 @@ class PlotManager:
         plt.tight_layout()
         return fig
 
-    def plot_skycoord(self, ra, dec, sn_ra, sn_dec, obj_name, title, include_title=True):
+    def plot_skycoord(self, ra, dec, obj_name, title, include_title=True):
         # This plot can output an offset for the x-axis and/or y-axis leading to more confusing tick labels
         base_ra = min(ra)
         base_offset = 114.32 - base_ra #Currently hardcoding offset by eye
@@ -930,9 +936,38 @@ class PlotManager:
         base_dec = min(dec)
         base_dec_offset = 65.6 - base_dec #Currently hardcoding offset for clean tick labels
 
+        brightest_index = np.argmin(self.blue_cut)
+        brightest_ra, brightest_dec = ra[brightest_index], dec[brightest_index]
+
+
         fig = plt.figure(figsize=(8, 8))
-        plt.scatter(ra, dec, alpha=0.6)
-        plt.scatter(sn_ra, sn_dec, color='red', marker='*', label=f"{obj_name}")
+        if self.use_brightest_star and self.blue_cut is not None and self.red_cut is not None:
+            print("Using brightest star for special marker")
+            avg_mag = (self.blue_cut + self.red_cut) / 2
+            brightest_index = np.argmin(avg_mag)
+            special_ra, special_dec = ra[brightest_index], dec[brightest_index]
+            special_label = f"{obj_name}"
+            
+            # Remove the brightest star from the data
+            mask = np.ones(len(ra), dtype=bool)
+            mask[brightest_index] = False
+            ra_filtered = ra[mask]
+            dec_filtered = dec[mask]
+            
+            # Plot all stars except the brightest
+            plt.scatter(ra_filtered, dec_filtered, alpha=0.6)
+        else:
+            print("Using Simbad catalog position for special marker")
+            special_ra, special_dec = self.sn_ra, self.sn_dec
+            special_label = f"{obj_name} (Simbad)"
+            
+            # Plot all stars
+            plt.scatter(ra, dec, alpha=0.6)
+
+        plt.scatter(special_ra, special_dec, color='red', marker='*', s=200, label=special_label)
+
+        #plt.scatter(brightest_ra, brightest_dec, color='red', marker='*', s=200, label=f"{obj_name}")lt.scatter(brightest_ra, brightest_dec, color='red', marker='*', s=200, label=f"{obj_name}")
+        #plt.scatter(sn_ra, sn_dec, color='red', marker='*', label=f"{obj_name}")
         plt.xlabel('RA (deg)', fontsize=12)
         plt.ylabel('Dec (deg)', fontsize=12)
         plt.xticks(fontsize=12)
@@ -944,13 +979,14 @@ class PlotManager:
         plt.legend()
         return fig
 
-    def plot_skycoord_sizing(self, ra, dec, sn_ra, sn_dec, obj_name, title, blue_mag, red_mag, include_title=True):
+    def plot_skycoord_sizing(self, ra, dec, obj_name, title, blue_mag, red_mag, include_title=True):
         # Calculate the size of each point relative to the average of blue and red magnitudes
         # Brighter stars should have larger sizes, so we invert the magnitude scale
         # Normalize sizes: The size calculation here is arbitrary and can be adjusted as needed
         avg_mag = (blue_mag + red_mag) / 2
         min_mag = np.min(avg_mag)
-        sizes = 100 * (1 / (avg_mag - min_mag + 1))  # +1 to avoid division by zero
+        max_size = 150
+        sizes = max_size * (1 / (avg_mag - min_mag + 1))  # +1 to avoid division by zero
 
         # This plot can output an offset for the x-axis and/or y-axis leading to more confusing tick labels
         base_ra = min(ra)
@@ -960,8 +996,35 @@ class PlotManager:
         base_dec_offset = 65.6 - base_dec  # Currently hardcoding offset for clean tick labels
 
         fig = plt.figure(figsize=(8, 8))
-        plt.scatter(ra, dec, s=sizes, alpha=0.6)  # Use calculated sizes
-        plt.scatter(sn_ra, sn_dec, color='red', marker='*', label=f"{obj_name}", s=200)  # Supernova with fixed larger size
+
+        if self.use_brightest_star:
+            print("Using brightest star for special marker (sizing plot)")
+            brightest_index = np.argmin(avg_mag)
+            special_ra, special_dec = ra[brightest_index], dec[brightest_index]
+            special_label = f"{obj_name}"
+            special_size = sizes[brightest_index]
+            
+            # Remove the brightest star from the data
+            mask = np.ones(len(ra), dtype=bool)
+            mask[brightest_index] = False
+            ra_filtered = ra[mask]
+            dec_filtered = dec[mask]
+            sizes_filtered = sizes[mask]
+            
+            # Plot all stars except the brightest
+            plt.scatter(ra_filtered, dec_filtered, s=sizes_filtered, alpha=0.6)
+        else:
+            print("Using Simbad catalog position for special marker (sizing plot)")
+            special_ra, special_dec = self.sn_ra, self.sn_dec
+            special_label = f"{obj_name} (Simbad)"
+            special_size = max_size #Use maximum size for Simbad position
+
+            # Plot all stars
+            plt.scatter(ra, dec, s=sizes, alpha=0.6)
+
+        plt.scatter(special_ra, special_dec, color='red', marker='*', s=special_size, label=special_label)
+
+        #plt.scatter(sn_ra, sn_dec, color='red', marker='*', label=f"{obj_name}", s=200)  # Supernova with fixed larger size
         plt.xlabel('RA (deg)', fontsize=12)
         plt.ylabel('Dec (deg)', fontsize=12)
         plt.xticks(fontsize=12)
@@ -1001,6 +1064,8 @@ class PlotManager:
                 dec_cut = data[:, 8]
                 blue_abs_cut = data[:, 9]
                 red_abs_cut = data[:, 10]
+                self.blue_cut = blue_cut
+                self.red_cut = red_cut
 
                 # Extract labels and other necessary data
                 cmd_label = self.cmd_label
@@ -1028,6 +1093,8 @@ class PlotManager:
             dec_cut = data[:, 8]
             blue_abs_cut = data[:, 9]
             red_abs_cut = data[:, 10]
+            self.blue_cut = blue_cut
+            self.red_cut = red_cut
 
             # Extract labels and other necessary data
             cmd_label = self.cmd_label
@@ -1091,12 +1158,12 @@ class PlotManager:
         plt.close(red_unc_fig)
 
         # Generate and save the Sky Coordinates plot
-        skycoord_fig = self.plot_skycoord(ra_cut, dec_cut, self.sn_ra, self.sn_dec, self.obj_name, f"{self.phot_file} {threshold}pc", include_title=include_titles)
+        skycoord_fig = self.plot_skycoord(ra_cut, dec_cut, self.obj_name, f"{self.phot_file} {threshold}pc", include_title=include_titles)
         pdf_pages.savefig(skycoord_fig)
         plt.close(skycoord_fig)
 
         # Generate and save the Skycoord fig, which adjusts the sizing of the points according to the mag of the star
-        skycoord_size_fig = self.plot_skycoord_sizing(ra_cut, dec_cut, self.sn_ra, self.sn_dec, self.obj_name, f"{self.phot_file} {threshold}pc Mag-Sizing", blue_cut, red_cut, include_title=include_titles)
+        skycoord_size_fig = self.plot_skycoord_sizing(ra_cut, dec_cut, self.obj_name, f"{self.phot_file} {threshold}pc Mag-Sizing", blue_cut, red_cut, include_title=include_titles)
         pdf_pages.savefig(skycoord_size_fig)
         plt.close(skycoord_size_fig)
 
@@ -1131,11 +1198,11 @@ class PlotManager:
         red_unc_fig.show()
 
         # Display the Sky Coordinates plot
-        skycoord_fig = self.plot_skycoord(ra_cut, dec_cut, self.sn_ra, self.sn_dec, self.obj_name, f"{self.phot_file} {threshold}pc")
+        skycoord_fig = self.plot_skycoord(ra_cut, dec_cut, self.obj_name, f"{self.phot_file} {threshold}pc")
         skycoord_fig.show()
 
         # Display the SkyCoord sizing plot
-        skycoord_size_fig = self.plot_skycoord_sizing(ra_cut, dec_cut, self.sn_ra, self.sn_dec, self.obj_name, f"{self.phot_file} {threshold}pc Mag-Sizing", blue_cut, red_cut)
+        skycoord_size_fig = self.plot_skycoord_sizing(ra_cut, dec_cut, self.obj_name, f"{self.phot_file} {threshold}pc Mag-Sizing", blue_cut, red_cut)
         skycoord_size_fig.show()
 
 def main():
@@ -1153,6 +1220,7 @@ def main():
     parser.add_argument('--save_data', action='store_true', help='Save quality and distance filtered datasets to .txt and .npy files')
     parser.add_argument('--no_titles', action='store_true', help='Generate plots without titles for publication')
     parser.add_argument('--pdf', type=str, help='Output PDF files to save the plots')
+    parser.add_argument('--use_brightest_star', action='store_true', help='Use brightest star instead of catalogue position for special marker')
     args = parser.parse_args()
 
     organizer = DataFilterOrganizer()
@@ -1451,7 +1519,7 @@ def main():
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
         
-        plotter = PlotManager(config, obj_name, distance, pdf=args.pdf, proximity_thresholds=proximity_thresholds, data_dir=data_dir)
+        plotter = PlotManager(config, obj_name, distance, pdf=args.pdf, proximity_thresholds=proximity_thresholds, data_dir=data_dir, use_brightest_star=args.use_brightest_star)
         prepared_data = plotter.prepare_data()
         
         if prepared_data is None:
