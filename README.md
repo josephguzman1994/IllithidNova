@@ -12,8 +12,8 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
 ## Contents
 
 - [Karlach.py - DOLPHOT Automation Tool](#karlachpy---dolphot-automation-tool)
-- [Gale.py - CMD 3.7 Isochrone Retrieval Tool](#galepy---cmd-37-isochrone-retrieval-tool)
-- [Halsin.py - MAST Data Retrieval Tool](#halsinpy---mast-data-retrieval-tool)
+- [Gale.py - Isochrone Retrieval Tool](#galepy---isochrone-retrieval-tool)
+- [Halsin.py - HST MAST Data Retrieval Tool](#halsinpy---hst-mast-data-retrieval-tool)
 - [Astarion.py - Stellar Ages Process Automation](#astarionpy---stellarages-process-automation)
 - [Lae'zel.py - IllithidNova Linking Tool](#laezelpy---illithidnova-linking-tool)
 - [Installation](#installation-for-karlach-gale-halsin-and-laezel)
@@ -125,7 +125,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
 
 <div style="display: flex; align-items: center;">
   <div style="flex-grow: 1;">
-    <h1 style="display: inline;">Gale.py - CMD 3.7 Isochrone Retrieval Tool</h1>
+    <h1 style="display: inline;">Gale.py - Isochrone Retrieval Tool</h1>
     <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/6deed2a1-8f87-4058-8996-9fcb145bbd54" alt="CMD 3.7 Tool" style="width: 125px;">
   </div>
 </div>
