@@ -130,7 +130,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   </div>
 </div>
 
-`Gale.py` is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.7 service hosted at `stev.oapd.inaf.it`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems. It is currently optimized to use the PARSEC and COLIBRI models to fetch photometric system data, which it then unpacks into structured `.npz` files for further analysis.
+`Gale.py` is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.7 service hosted at `stev.oapd.inaf.it`, as well as MIST isochrones hosted at `https://waps.cfa.harvard.edu/MIST/interp_isos.html`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems. It is currently optimized to use MIST, PARSECv1.2s (soon to include 2.0 as well) and COLIBRI models to fetch photometric system data, which it then unpacks into structured `.npz` files for further analysis.
 
 <details>
   <summary>Click to Expand!</summary>
@@ -164,7 +164,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   ## Usage
   To use `Gale.py`, you can utilize the following command-line arguments:
   
-  - `--download_iso`: Trigger the download of isochrone data.
+  - `--download_iso`: Trigger the download of isochrone data (from either PARSEC or MIST).
   - `--UnpackIsoSet`: Unpack the downloaded `.set` file into separate `.npz` files.
   - `--isodir`: Specify the directory where unpacked data should be stored. If not utilized, defaults to the current working directory.
   - `--plot_age_iso`: Reads in unpacked .npz files to plot isochrones for varying ages and a fixed metallicity.
@@ -173,7 +173,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   - `--MaxIsoAge`: Check the maximum isochrone age against table limits.
   
   ### Examples
-  1. **Downloading and Unpacking Data**
+  1. **Downloading and Unpacking PARSEC isochrones**
   bash ```python3 Gale.py --download_iso --UnpackIsoSet```
   
   &emsp; This command downloads the isochrone data based on user inputs and immediately unpacks it into the current directory. Utilizes environment variables to minimize user input. The structure of the `.npz` files are as follows: `isodata` which has 4+ columns: `"Mini", "Mass", "LogL", "LogTe"` and several columns which refer to our commonly used filters, then `isomodel` which refers to Parsec v1.2S in this case. `photsystem` which refers to the scientific instrument of interest, `indexdict` which defines the indices for the filters of interest, `fblue` the extinction scaling factor for the blue band, `fred` the extinction scaling factor for the red band.
@@ -184,13 +184,13 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   &emsp; This uses an existing `.set` file to unpack the data in a specified directory. If you ran ```--download_iso``` in the same terminal session, it will use the environment variables to automatically find the output files. Otherwise, you will be prompted manually define the necessary files with terminal input.
   
   ## Notes
-  - Ensure that your internet connection is stable when downloading data from CMD 3.7
-  - For downloading isochrones, the script currently does not handle gzip-compressed files. If you need to download large datasets, consider modifying the script (under `form_data`) to handle gzip compression.
+  - Ensure that your internet connection is stable when downloading data from hosting servers
+  - For downloading PARSEC isochrones, the script currently does not handle gzip-compressed files. If you need to download large datasets, consider modifying the script (under `form_data`) to handle gzip compression.
 </details>
 
 <div style="display: flex; align-items: center;">
   <div style="flex-grow: 1;">
-    <h1 style="display: inline;">Halsin.py - MAST Data Retrieval Tool</h1>
+    <h1 style="display: inline;">Halsin.py - HST MAST Data Retrieval Tool</h1>
     <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/3e589fb7-3253-41c1-90ad-8e527a3c0709" alt="HST MAST Tool" style="width: 100px;">
   </div>
 </div>
