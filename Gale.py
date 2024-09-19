@@ -5,6 +5,8 @@ from bs4 import BeautifulSoup
 from io import BytesIO
 import re
 import os
+import time
+import requests
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
@@ -16,6 +18,79 @@ import glob
 def get_datasource(instrument):
     hst_instruments = ['ACS_HRC', 'ACS_WFC', 'WFC3_UVIS', 'WFPC2']
     return 'HST' if instrument in hst_instruments else 'To Be Coded'
+
+class MISTDownloader:
+    def __init__(self):
+        self.photometry_systems = [
+            "CFHTugriz", "DECam", "HST_ACSHR", "HST_ACSWF", "HST_WFC3", "HST_WFPC2",
+            "IPHAS", "GALEX", "JWST", "LSST", "PanSTARRS", "SDSSugriz", "SkyMapper",
+            "SPITZER", "SPLUS", "HSC", "Swift", "UBVRIplus", "UKIDSS", "UVIT", "VISTA",
+            "WashDDOuvby", "WFIRST", "WISE"
+        ]
+
+    def download_isochrones(self, rotation, ages, composition, photometry_system, extinction):
+        url = "https://waps.cfa.harvard.edu/MIST/iso_form.php"
+        data = {
+            "version": "1.2",
+            "v_div_vcrit": "vvcrit0.4" if rotation == "0.4" else "vvcrit0.0",
+            "age_scale": "log10",
+            "age_type": "list",
+            "age_list": ages,
+            "FeH_value": composition,
+            "output_option": "photometry",
+            "output": photometry_system,
+            "Av_value": extinction
+        }
+        session = requests.Session()
+        response = session.post(url, data=data)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        download_link = soup.find('a', text=lambda text: 'Click here' in text if text else False)
+        if not download_link:
+            print("Response content:", response.text)
+            raise Exception("Couldn't find the link to download the data")
+        download_url = "https://waps.cfa.harvard.edu/MIST/" + download_link['href']
+        print(f"Downloading from: {download_url}")
+        time.sleep(10)
+        response = session.get(download_url)
+        filename = f"isochrones_{rotation}_{composition}_{photometry_system}.zip"
+        with open(filename, 'wb') as f:
+            f.write(response.content)
+        print(f"Downloaded: {filename}")
+
+    def run(self):
+        while True:
+            rotation = input("Enter rotation (0.0 or 0.4): ")
+            if rotation in ["0.0", "0.4"]:
+                break
+            print("Invalid input. Please enter 0.0 or 0.4.")
+        ages = input("Enter space-separated log ages (e.g., 7.0 8.0 9.0): ")
+        compositions_input = input("Enter space-separated composition values (e.g., -2.0 -1.0 0.0 0.5): ")
+        compositions = [float(comp) for comp in compositions_input.split()]
+        print("Available photometry systems:")
+        for i, system in enumerate(self.photometry_systems, 1):
+            print(f"{i}. {system}")
+        while True:
+            try:
+                photometry_index = int(input("Enter the number corresponding to the desired photometry system: ")) - 1
+                if 0 <= photometry_index < len(self.photometry_systems):
+                    photometry_system = self.photometry_systems[photometry_index]
+                    break
+                else:
+                    print("Invalid input. Please enter a number within the range.")
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+        extinction = "0.0"
+        for composition in compositions:
+            print(f"Downloading isochrones for composition: {composition}")
+            self.download_isochrones(
+                rotation=rotation,
+                ages=ages,
+                composition=str(composition),
+                photometry_system=photometry_system,
+                extinction=extinction
+            )
+            time.sleep(20)
+        print("All downloads completed.")
 
 # This class handles interfacing with the webpage and submitting the appropriate request for isochrones
 class PARSEC:
@@ -513,134 +588,146 @@ async def main():
     isodir = args.isodir if args.isodir else os.getcwd()
     
     if args.download_iso:
-        base_url = "http://stev.oapd.inaf.it/cgi-bin/cmd"
-        parsec = PARSEC(base_url)
-    
-        '''
-        User input for specific parameters. Currently has a few assumptions:
-        
-        1. That you want to use log ages, and [M/H] values. If you want to use linear ages or z, that is easily doable,
-        but you would need to update the form_data and user input. 
-        The keys for activating linear ages are: isoc_agelow','isoc_ageupp', and 'isoc_dage'. Also, set 'isoc_isagelog' = 0.
-        Similarly, to activate z values, use 'isoc_zlow', 'isoc_zupp', and 'isoc_dz'. Also set 'isoc_ismetlog' = 0
-        
-        2. You do not want to gzip your file. This means you are restricted to the CMD's webpage of downloading 400 isochrones at one time.
-        If you would like to change this, change 'output_gzip' = 1. (FYI this change will likely conflict with 'UnpackIsoSet' in StellarAges)
-        
-        3. You want to use CMD 3.7, Parsec v1.2S, and COLIBRI S_37. If you would like to change this, alter 'CMD', 'track_parsec', and 'track_colibri' in 'form_data'. As I don't know what potential future version you may
-        want to use, you will need to track down the correct values yourself.
+        print("Choose the isochrone model to download:")
+        print("1. PARSEC")
+        print("2. MIST")
+        choice = input("Enter your choice (1 or 2): ")
 
-        4. In general, if you find you want to alter the default values / understand them better, inspect the 'form_data' and html on the webpage
-        '''
+        if choice == "1":
+            base_url = "http://stev.oapd.inaf.it/cgi-bin/cmd"
+            parsec = PARSEC(base_url)
         
-        try:
-            print("Let's attempt to download the desired isochrones by defining some parameters")
+            '''
+            User input for specific parameters. Currently has a few assumptions:
             
-            print("Currently available photometric systems: ", list(photometric_systems.keys()))
-            photometric_input = input("Enter the photometric system: ")
-            photsys_file = photometric_systems.get(photometric_input.upper())
+            1. That you want to use log ages, and [M/H] values. If you want to use linear ages or z, that is easily doable,
+            but you would need to update the form_data and user input. 
+            The keys for activating linear ages are: isoc_agelow','isoc_ageupp', and 'isoc_dage'. Also, set 'isoc_isagelog' = 0.
+            Similarly, to activate z values, use 'isoc_zlow', 'isoc_zupp', and 'isoc_dz'. Also set 'isoc_ismetlog' = 0
             
-            if photsys_file is None:
-                photsys_file = 'YBC_tab_mag_odfnew/tab_mag_wfc3_202101_wide.dat'  # Set default file
-                print("Invalid photometric system. Defaulting to WFC3_UVIS file.")
+            2. You do not want to gzip your file. This means you are restricted to the CMD's webpage of downloading 400 isochrones at one time.
+            If you would like to change this, change 'output_gzip' = 1. (FYI this change will likely conflict with 'UnpackIsoSet' in StellarAges)
             
-            # User-defined inputs for relevant parameters
-            isoc_lagelow = float(input("Enter the lower log age limit (isoc_lagelow): "))
-            isoc_lageupp = float(input("Enter the upper log age limit (isoc_lageupp): "))
-            isoc_dlage = float(input("Enter the log age step-size (isoc_dlage): "))
-            isoc_metlow = float(input("Enter the lower metallicity [M/H] limit (isoc_metlow): "))
-            isoc_metupp = float(input("Enter the upper metallicity [M/H] limit (isoc_metupp): "))
-            isoc_dmet = float(input("Enter the metallicity [M/H] step-size (isoc_dmet): "))
+            3. You want to use CMD 3.7, Parsec v1.2S, and COLIBRI S_37. If you would like to change this, alter 'CMD', 'track_parsec', and 'track_colibri' in 'form_data'. As I don't know what potential future version you may
+            want to use, you will need to track down the correct values yourself.
 
-            # Clear environment variables at the start of the script, in case running multiple times in a row
-            os.environ.pop('AGES', None)
-            os.environ.pop('ZS', None)
-
-            # Compute age and metallicity arrays to store in environment variables
-            ages = np.arange(isoc_lagelow, isoc_lageupp + isoc_dlage / 10, isoc_dlage)
-            zs = np.arange(isoc_metlow, isoc_metupp + isoc_dmet / 10, isoc_dmet)
-
-            # Convert arrays to comma-separated strings with two decimal precision and set environment variables
-            os.environ['AGES'] = ','.join(f"{age:.2f}" for age in ages)
-            os.environ['ZS'] = ','.join(f"{z:.2f}" for z in zs)
-        
-        except ValueError:
-            print("Invalid input. Please enter a valid floating-point number.")
-            return
-
-        # All these values need to match the format found in the html form on the PARSEC webpage
-        form_data = {
-            'cmd_version': '3.7',
-            'photsys_file': photsys_file,
-            'photometric_input': photometric_input.upper(),
-            'output_kind': '0',
-            'output_evstage': '1',
-            'output_gzip': '0',
-            'track_parsec': 'parsec_CAF09_v1.2S',
-            'track_colibri': 'parsec_CAF09_v1.2S_S_LMC_08_web',
-            'photsys_version': 'YBCnewVega',
-            'dust_sourceM': 'dpmod60alox40',
-            'dust_sourceC': 'AMCSIC15',
-            'extinction_av': '0.0',
-            'extinction_coeff': 'constant',
-            'extinction_curve': 'cardelli',
-            'kind_LPV': '3',
-            'imf_file': 'tab_imf/imf_kroupa_orig.dat',
-            'isoc_isagelog': '1',
-            'isoc_lagelow': isoc_lagelow,
-            'isoc_lageupp': isoc_lageupp,
-            'isoc_dlage': isoc_dlage,
-            'isoc_ismetlog': '1',
-            'isoc_metlow': isoc_metlow,
-            'isoc_metupp': isoc_metupp,
-            'isoc_dmet': isoc_dmet,
-            'submit_form': 'Submit'
-        }
-
-        output_filename, instrument_input = await parsec.download_isochrone(form_data)
-
-        if output_filename and instrument_input:
-            # Set environment variables immediately after download, this will allow use of --UnpackIsoSet during same session without having to manually input values
-            os.environ['ISOSETFILE'] = output_filename
-            os.environ['INSTRUMENT'] = instrument_input
-            os.environ['DATASOURCE'] = 'HST' if instrument_input in ['ACS_HRC', 'ACS_WFC', 'WFC3_UVIS', 'WFPC2'] else 'To Be Coded'
-            print("Download complete.")
-
-            # After setting the environment variables in the download_iso section
-            # Print the environment variables to the terminal for user to verify correctness
-            print("Environment Variables Set:")
-            print("ISOSETFILE:", os.getenv('ISOSETFILE'))
-            print("INSTRUMENT:", os.getenv('INSTRUMENT'))
-            print("DATASOURCE:", os.getenv('DATASOURCE'))
-            print("AGES:", os.getenv('AGES'))
-            print("ZS:", os.getenv('ZS'))
-            print("\n")
-                        
-            # Use the directory specified by --isodir or default to the directory of the downloaded file
-            if not args.isodir:
-                isodir = os.path.dirname(output_filename)
+            4. In general, if you find you want to alter the default values / understand them better, inspect the 'form_data' and html on the webpage
+            '''
             
-            if args.UnpackIsoSet:
-                instrument_input = os.getenv('INSTRUMENT', 'Unknown Instrument')
-                print(f"Proceeding to unpack isochrone data for {instrument_input}")
-                datasource = get_datasource(instrument_input)
-                unpacker = UnpackIsoSet(isodir, instrument_input, datasource, photsystem=instrument_input)
+            try:
+                print("Let's attempt to download the desired isochrones by defining some parameters")
                 
-                available_filters = unpacker.list_available_filters()
-                print("Available filters:")
-                for idx, filt in enumerate(available_filters):
-                    print(f"{idx}: {filt}")
-
-                blue_idx = int(input("Enter the index for the blue filter: "))
-                red_idx = int(input("Enter the index for the red filter: "))
-
-                mags = [available_filters[blue_idx], available_filters[red_idx]]
-                unpacker.mags = mags
+                print("Currently available photometric systems: ", list(photometric_systems.keys()))
+                photometric_input = input("Enter the photometric system: ")
+                photsys_file = photometric_systems.get(photometric_input.upper())
                 
-                unpacker.read_iso_set(output_filename)
-                print("Data unpacking complete.\n")
+                if photsys_file is None:
+                    photsys_file = 'YBC_tab_mag_odfnew/tab_mag_wfc3_202101_wide.dat'  # Set default file
+                    print("Invalid photometric system. Defaulting to WFC3_UVIS file.")
+                
+                # User-defined inputs for relevant parameters
+                isoc_lagelow = float(input("Enter the lower log age limit (isoc_lagelow): "))
+                isoc_lageupp = float(input("Enter the upper log age limit (isoc_lageupp): "))
+                isoc_dlage = float(input("Enter the log age step-size (isoc_dlage): "))
+                isoc_metlow = float(input("Enter the lower metallicity [M/H] limit (isoc_metlow): "))
+                isoc_metupp = float(input("Enter the upper metallicity [M/H] limit (isoc_metupp): "))
+                isoc_dmet = float(input("Enter the metallicity [M/H] step-size (isoc_dmet): "))
+
+                # Clear environment variables at the start of the script, in case running multiple times in a row
+                os.environ.pop('AGES', None)
+                os.environ.pop('ZS', None)
+
+                # Compute age and metallicity arrays to store in environment variables
+                ages = np.arange(isoc_lagelow, isoc_lageupp + isoc_dlage / 10, isoc_dlage)
+                zs = np.arange(isoc_metlow, isoc_metupp + isoc_dmet / 10, isoc_dmet)
+
+                # Convert arrays to comma-separated strings with two decimal precision and set environment variables
+                os.environ['AGES'] = ','.join(f"{age:.2f}" for age in ages)
+                os.environ['ZS'] = ','.join(f"{z:.2f}" for z in zs)
+            
+            except ValueError:
+                print("Invalid input. Please enter a valid floating-point number.")
+                return
+
+            # All these values need to match the format found in the html form on the PARSEC webpage
+            form_data = {
+                'cmd_version': '3.7',
+                'photsys_file': photsys_file,
+                'photometric_input': photometric_input.upper(),
+                'output_kind': '0',
+                'output_evstage': '1',
+                'output_gzip': '0',
+                'track_parsec': 'parsec_CAF09_v1.2S',
+                'track_colibri': 'parsec_CAF09_v1.2S_S_LMC_08_web',
+                'photsys_version': 'YBCnewVega',
+                'dust_sourceM': 'dpmod60alox40',
+                'dust_sourceC': 'AMCSIC15',
+                'extinction_av': '0.0',
+                'extinction_coeff': 'constant',
+                'extinction_curve': 'cardelli',
+                'kind_LPV': '3',
+                'imf_file': 'tab_imf/imf_kroupa_orig.dat',
+                'isoc_isagelog': '1',
+                'isoc_lagelow': isoc_lagelow,
+                'isoc_lageupp': isoc_lageupp,
+                'isoc_dlage': isoc_dlage,
+                'isoc_ismetlog': '1',
+                'isoc_metlow': isoc_metlow,
+                'isoc_metupp': isoc_metupp,
+                'isoc_dmet': isoc_dmet,
+                'submit_form': 'Submit'
+            }
+
+            output_filename, instrument_input = await parsec.download_isochrone(form_data)
+
+            if output_filename and instrument_input:
+                # Set environment variables immediately after download, this will allow use of --UnpackIsoSet during same session without having to manually input values
+                os.environ['ISOSETFILE'] = output_filename
+                os.environ['INSTRUMENT'] = instrument_input
+                os.environ['DATASOURCE'] = 'HST' if instrument_input in ['ACS_HRC', 'ACS_WFC', 'WFC3_UVIS', 'WFPC2'] else 'To Be Coded'
+                print("Download complete.")
+
+                # After setting the environment variables in the download_iso section
+                # Print the environment variables to the terminal for user to verify correctness
+                print("Environment Variables Set:")
+                print("ISOSETFILE:", os.getenv('ISOSETFILE'))
+                print("INSTRUMENT:", os.getenv('INSTRUMENT'))
+                print("DATASOURCE:", os.getenv('DATASOURCE'))
+                print("AGES:", os.getenv('AGES'))
+                print("ZS:", os.getenv('ZS'))
+                print("\n")
+                            
+                # Use the directory specified by --isodir or default to the directory of the downloaded file
+                if not args.isodir:
+                    isodir = os.path.dirname(output_filename)
+                
+                if args.UnpackIsoSet:
+                    instrument_input = os.getenv('INSTRUMENT', 'Unknown Instrument')
+                    print(f"Proceeding to unpack isochrone data for {instrument_input}")
+                    datasource = get_datasource(instrument_input)
+                    unpacker = UnpackIsoSet(isodir, instrument_input, datasource, photsystem=instrument_input)
+                    
+                    available_filters = unpacker.list_available_filters()
+                    print("Available filters:")
+                    for idx, filt in enumerate(available_filters):
+                        print(f"{idx}: {filt}")
+
+                    blue_idx = int(input("Enter the index for the blue filter: "))
+                    red_idx = int(input("Enter the index for the red filter: "))
+
+                    mags = [available_filters[blue_idx], available_filters[red_idx]]
+                    unpacker.mags = mags
+                    
+                    unpacker.read_iso_set(output_filename)
+                    print("Data unpacking complete.\n")
+            else:
+                print("Failed to download or incorrect data received.")
+
+        elif choice == "2":
+            mist_downloader = MISTDownloader()
+            mist_downloader.run()
         else:
-            print("Failed to download or incorrect data received.")
+            print("Invalid choice. Please enter 1 or 2.")    
 
     # Can use UnpackIsoSet without download_iso if you have the necessary information.
     # If you ran --download_iso in the same terminal session, it can automatically fetch everything necessary with environment variables
