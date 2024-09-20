@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from io import BytesIO
 import re
 import os
+import zipfile
 import time
 import requests
 import numpy as np
@@ -56,6 +57,47 @@ class MISTDownloader:
         with open(filename, 'wb') as f:
             f.write(response.content)
         print(f"Downloaded: {filename}")
+        return filename
+
+    def unzip_isochrones(self, zip_filename, ages):
+        # Extract the base name without extension
+        base_name = os.path.splitext(zip_filename)[0]
+        
+        # Parse the components from the filename
+        parts = base_name.split('_')
+        rotation, composition, photometry_system = parts[1], parts[2], '_'.join(parts[3:])
+        
+        # Get the min and max ages
+        age_list = [float(age) for age in ages.split()]
+        min_age, max_age = min(age_list), max(age_list)
+        
+        # Create the new base name for extracted files
+        new_base_name = f"MIST_Rot_{rotation}_Z_{composition}_Age_{min_age:.1f}_{max_age:.1f}"
+        
+        extracted_files = []
+        
+        # Unzip the file
+        with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
+            for file in zip_ref.namelist():
+                # Get the name of the file inside the zip
+                filename = os.path.basename(file)
+                # If it's a .cmd file
+                if filename.endswith('.cmd'):
+                    # Construct the new filename
+                    new_filename = f"{new_base_name}iso.cmd"
+                    # Extract the file with the new name
+                    with zip_ref.open(file) as zf, open(new_filename, 'wb') as f:
+                        f.write(zf.read())
+                    extracted_files.append(new_filename)
+                # For other files, extract them with their original names
+                elif filename:
+                    with zip_ref.open(file) as zf, open(filename, 'wb') as f:
+                        f.write(zf.read())
+                    extracted_files.append(filename)
+        
+        print(f"Unzipped files: {', '.join(extracted_files)}")
+        return new_base_name
+
 
     def run(self):
         while True:
@@ -82,7 +124,7 @@ class MISTDownloader:
         extinction = "0.0"
         for composition in compositions:
             print(f"Downloading isochrones for composition: {composition}")
-            self.download_isochrones(
+            zip_filename = self.download_isochrones(
                 rotation=rotation,
                 ages=ages,
                 composition=str(composition),
@@ -90,7 +132,12 @@ class MISTDownloader:
                 extinction=extinction
             )
             time.sleep(20)
-        print("All downloads completed.")
+        
+            # Unzip the downloaded file
+            self.unzip_isochrones(zip_filename, ages)
+
+        print("All downloads and extractions completed.")
+
 
 # This class handles interfacing with the webpage and submitting the appropriate request for isochrones
 class PARSEC:
@@ -264,7 +311,7 @@ class UnpackIsoSet:
                 temp = [float(i) for i in line.strip().split()]
                 data = [temp[i] for i in icols]
 
-                mh = temp[1]+0 #Adding 0. to make sure that 0. is positive not -0.
+                mh = temp[1]+0 #Make sure that 0. is positive
                 logage = temp[2]
                 if (mh != lastmh or logage != lastlogage):
                     if (printisodata):
