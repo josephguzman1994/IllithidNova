@@ -143,6 +143,19 @@ class MISTDownloader:
 class PARSEC:
     def __init__(self, base_url="http://stev.oapd.inaf.it/cgi-bin/cmd"):
         self.base_url = base_url
+        self.parsec_versions = {
+            "1.2S": "parsec_CAF09_v1.2S",
+            "2.0": "parsec_v2.0"
+        }
+        self.rotation_options = {
+            "0.00": "vvcrit0.0",
+            "0.30": "vvcrit0.3",
+            "0.60": "vvcrit0.6",
+            "0.80": "vvcrit0.8",
+            "0.90": "vvcrit0.9",
+            "0.95": "vvcrit0.95",
+            "0.99": "vvcrit0.99"
+        }
 
     async def send_request(self, form_data):
         url = f"{self.base_url}/cgi-bin/cmd_{form_data['cmd_version']}"
@@ -192,7 +205,16 @@ class PARSEC:
                 
                 # Construct the output filename based on form_data
                 photometric_system = form_data['photsys_file'].split('/')[-1].replace('tab_mag_', '').replace('.dat', '').replace('_', ' ').title().replace(' ', '_').upper()
-                output_filename = f"IsoParsec_{form_data['track_parsec'].split('_')[-1]}_{photometric_system}_Age_{form_data['isoc_lagelow']}_{form_data['isoc_lageupp']}_{form_data['isoc_dlage']}_MH_{form_data['isoc_metlow']}_{form_data['isoc_metupp']}_{form_data['isoc_dmet']}.set"
+                
+                # Remove '202101' or similar strings and add rotation if it's PARSEC v2.0
+                photometric_system_parts = photometric_system.split('_')
+                photometric_system_clean = '_'.join([part for part in photometric_system_parts if not part.isdigit()])
+                
+                if form_data['track_parsec'] == self.parsec_versions['2.0']:
+                    rotation = form_data.get('v_div_vcrit', 'NoRot')
+                    photometric_system_clean += f"_Rot_{rotation}"
+
+                output_filename = f"IsoParsec_{form_data['track_parsec'].split('_')[-1]}_{photometric_system_clean}_Age_{form_data['isoc_lagelow']}_{form_data['isoc_lageupp']}_{form_data['isoc_dlage']}_MH_{form_data['isoc_metlow']}_{form_data['isoc_metupp']}_{form_data['isoc_dmet']}.set"
                 
                 if dat_content.startswith('<!DOCTYPE HTML'):
                     print("Error: The downloaded content is an HTML page, not the expected .dat file.")
@@ -208,6 +230,7 @@ class PARSEC:
             print("Failed to download data")
             if response:
                 self.parse_errors(response.text)
+
 
     def _convert_to_table(self, html_content):
         """Convert HTML content to a table."""
@@ -643,6 +666,26 @@ async def main():
         if choice == "1":
             base_url = "http://stev.oapd.inaf.it/cgi-bin/cmd"
             parsec = PARSEC(base_url)
+
+            print("Choose PARSEC version:")
+            print("1. PARSEC v1.2S")
+            print("2. PARSEC v2.0")
+            version_choice = input("Enter your choice (1 or 2): ")
+
+            if version_choice == "1":
+                parsec_version = "1.2S"
+                rotation_values = [None]  # No rotation for v1.2S
+            elif version_choice == "2":
+                parsec_version = "2.0"
+                print("\nAvailable rotation options for PARSEC v2.0:")
+                for i, omega in enumerate(parsec.rotation_options.keys(), 1):
+                    print(f"{i}. ωi={omega}")
+                rotation_choices = input("Enter the numbers of desired rotation options (comma-separated): ")
+                rotation_values = [list(parsec.rotation_options.keys())[int(choice)-1] for choice in rotation_choices.split(',')]
+            else:
+                print("Invalid choice. Defaulting to PARSEC v1.2S")
+                parsec_version = "1.2S"
+                rotation_values = [None]
         
             '''
             User input for specific parameters. Currently has a few assumptions:
@@ -704,7 +747,7 @@ async def main():
                 'output_kind': '0',
                 'output_evstage': '1',
                 'output_gzip': '0',
-                'track_parsec': 'parsec_CAF09_v1.2S',
+                'track_parsec': parsec.parsec_versions[parsec_version],
                 'track_colibri': 'parsec_CAF09_v1.2S_S_LMC_08_web',
                 'photsys_version': 'YBCnewVega',
                 'dust_sourceM': 'dpmod60alox40',
@@ -725,50 +768,60 @@ async def main():
                 'submit_form': 'Submit'
             }
 
-            output_filename, instrument_input = await parsec.download_isochrone(form_data)
-
-            if output_filename and instrument_input:
-                # Set environment variables immediately after download, this will allow use of --UnpackIsoSet during same session without having to manually input values
-                os.environ['ISOSETFILE'] = output_filename
-                os.environ['INSTRUMENT'] = instrument_input
-                os.environ['DATASOURCE'] = 'HST' if instrument_input in ['ACS_HRC', 'ACS_WFC', 'WFC3_UVIS', 'WFPC2'] else 'To Be Coded'
-                print("Download complete.")
-
-                # After setting the environment variables in the download_iso section
-                # Print the environment variables to the terminal for user to verify correctness
-                print("Environment Variables Set:")
-                print("ISOSETFILE:", os.getenv('ISOSETFILE'))
-                print("INSTRUMENT:", os.getenv('INSTRUMENT'))
-                print("DATASOURCE:", os.getenv('DATASOURCE'))
-                print("AGES:", os.getenv('AGES'))
-                print("ZS:", os.getenv('ZS'))
-                print("\n")
-                            
-                # Use the directory specified by --isodir or default to the directory of the downloaded file
-                if not args.isodir:
-                    isodir = os.path.dirname(output_filename)
+            for rotation in rotation_values:
+                # Add delay at the start of each iteration, except for the first one
+                if rotation != rotation_values[0]:
+                    await asyncio.sleep(20)  # 20 second delay
                 
-                if args.UnpackIsoSet:
-                    instrument_input = os.getenv('INSTRUMENT', 'Unknown Instrument')
-                    print(f"Proceeding to unpack isochrone data for {instrument_input}")
-                    datasource = get_datasource(instrument_input)
-                    unpacker = UnpackIsoSet(isodir, instrument_input, datasource, photsystem=instrument_input)
-                    
-                    available_filters = unpacker.list_available_filters()
-                    print("Available filters:")
-                    for idx, filt in enumerate(available_filters):
-                        print(f"{idx}: {filt}")
+                form_data = form_data.copy()
+                
+                if rotation:
+                    form_data['v_div_vcrit'] = parsec.rotation_options[rotation]
 
-                    blue_idx = int(input("Enter the index for the blue filter: "))
-                    red_idx = int(input("Enter the index for the red filter: "))
+                output_filename, instrument_input = await parsec.download_isochrone(form_data)
 
-                    mags = [available_filters[blue_idx], available_filters[red_idx]]
-                    unpacker.mags = mags
+                if output_filename and instrument_input:
+                    # Set environment variables immediately after download, this will allow use of --UnpackIsoSet during same session without having to manually input values
+                    os.environ['ISOSETFILE'] = output_filename
+                    os.environ['INSTRUMENT'] = instrument_input
+                    os.environ['DATASOURCE'] = 'HST' if instrument_input in ['ACS_HRC', 'ACS_WFC', 'WFC3_UVIS', 'WFPC2'] else 'To Be Coded'
+                    print(f"Download complete for rotation ωi={rotation if rotation else 'N/A'}")
+
+                    # After setting the environment variables in the download_iso section
+                    # Print the environment variables to the terminal for user to verify correctness
+                    print("Environment Variables Set:")
+                    print("ISOSETFILE:", os.getenv('ISOSETFILE'))
+                    print("INSTRUMENT:", os.getenv('INSTRUMENT'))
+                    print("DATASOURCE:", os.getenv('DATASOURCE'))
+                    print("AGES:", os.getenv('AGES'))
+                    print("ZS:", os.getenv('ZS'))
+                    print("\n")
+                                
+                    # Use the directory specified by --isodir or default to the directory of the downloaded file
+                    if not args.isodir:
+                        isodir = os.path.dirname(output_filename)
                     
-                    unpacker.read_iso_set(output_filename)
-                    print("Data unpacking complete.\n")
-            else:
-                print("Failed to download or incorrect data received.")
+                    if args.UnpackIsoSet:
+                        instrument_input = os.getenv('INSTRUMENT', 'Unknown Instrument')
+                        print(f"Proceeding to unpack isochrone data for {instrument_input}")
+                        datasource = get_datasource(instrument_input)
+                        unpacker = UnpackIsoSet(isodir, instrument_input, datasource, photsystem=instrument_input)
+                        
+                        available_filters = unpacker.list_available_filters()
+                        print("Available filters:")
+                        for idx, filt in enumerate(available_filters):
+                            print(f"{idx}: {filt}")
+
+                        blue_idx = int(input("Enter the index for the blue filter: "))
+                        red_idx = int(input("Enter the index for the red filter: "))
+
+                        mags = [available_filters[blue_idx], available_filters[red_idx]]
+                        unpacker.mags = mags
+                        
+                        unpacker.read_iso_set(output_filename)
+                        print("Data unpacking complete.\n")
+                else:
+                    print(f"Failed to download or incorrect data received for rotation ωi={rotation if rotation else 'N/A'}")
 
         elif choice == "2":
             mist_downloader = MISTDownloader()
