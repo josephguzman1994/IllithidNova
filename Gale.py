@@ -14,6 +14,7 @@ import argparse
 import pickle
 import glob
 
+
 # Globally define get_datasource, so all classes can use it
 # In Stellar Ages you need to define the 'Instrument' and 'Datasource'. This is redundant as the instrument defines the data source, so this definition maps the instruments to the appropriate data source
 def get_datasource(instrument):
@@ -28,6 +29,7 @@ class MISTDownloader:
             "SPITZER", "SPLUS", "HSC", "Swift", "UBVRIplus", "UKIDSS", "UVIT", "VISTA",
             "WashDDOuvby", "WFIRST", "WISE"
         ]
+        self.output_filename = None
 
     def download_isochrones(self, rotation, ages, composition, photometry_system, extinction):
         url = "https://waps.cfa.harvard.edu/MIST/iso_form.php"
@@ -96,8 +98,8 @@ class MISTDownloader:
                     extracted_files.append(filename)
         
         print(f"Unzipped files: {', '.join(extracted_files)}")
+        self.output_filename = extracted_files  # Store all extracted filenames
         return new_base_name
-
 
     def run(self):
         while True:
@@ -137,6 +139,7 @@ class MISTDownloader:
             self.unzip_isochrones(zip_filename, ages)
 
         print("All downloads and extractions completed.")
+        return rotation
 
 
 # This class handles interfacing with the webpage and submitting the appropriate request for isochrones
@@ -145,16 +148,16 @@ class PARSEC:
         self.base_url = base_url
         self.parsec_versions = {
             "1.2S": "parsec_CAF09_v1.2S",
-            "2.0": "parsec_v2.0"
+            "2.0": "parsec_CAF09_v2.0"
         }
         self.rotation_options = {
-            "0.00": "vvcrit0.0",
-            "0.30": "vvcrit0.3",
-            "0.60": "vvcrit0.6",
-            "0.80": "vvcrit0.8",
-            "0.90": "vvcrit0.9",
-            "0.95": "vvcrit0.95",
-            "0.99": "vvcrit0.99"
+            "0.00": "0.00",
+            "0.30": "0.30",
+            "0.60": "0.60",
+            "0.80": "0.80",
+            "0.90": "0.90",
+            "0.95": "0.95",
+            "0.99": "0.99"
         }
 
     async def send_request(self, form_data):
@@ -167,11 +170,19 @@ class PARSEC:
             response = await client.post(url, data=form_data, headers=headers, timeout=180.0)
             return response
 
-    async def download_dat_file(self, dat_file_url):
-        """Download the actual .dat file from the extracted URL."""
+    async def download_dat_file(self, url):
+        """Download the .dat file from the given URL."""
         async with httpx.AsyncClient() as client:
-            response = await client.get(dat_file_url)
-            return response.text
+            response = await client.get(url)
+            if response.status_code == 200:
+                content = response.text
+                if len(content) < 1000:  # Arbitrary small size to check if file is too small
+                    print(f"Warning: Downloaded file seems too small ({len(content)} characters)")
+                    print("File content:", content)
+                return content
+            else:
+                print(f"Failed to download .dat file. Status code: {response.status_code}")
+                return None
 
     def find_dat_file_link(self, html_content):
         """Extract the .dat file link from the HTML content."""
@@ -198,39 +209,54 @@ class PARSEC:
         if response and response.status_code == 200:
             dat_file_url = self.find_dat_file_link(response.text)
             if dat_file_url:
-                # Correct the URL by replacing '/cgi-bin/cmd' with '/tmp'
                 dat_file_url = f"http://stev.oapd.inaf.it/tmp/{dat_file_url.split('/')[-1]}"
-                print(f"Attempting to download from: {dat_file_url}")  # Debug print
                 dat_content = await self.download_dat_file(dat_file_url)
                 
-                # Construct the output filename based on form_data
-                photometric_system = form_data['photsys_file'].split('/')[-1].replace('tab_mag_', '').replace('.dat', '').replace('_', ' ').title().replace(' ', '_').upper()
-                
-                # Remove '202101' or similar strings and add rotation if it's PARSEC v2.0
-                photometric_system_parts = photometric_system.split('_')
-                photometric_system_clean = '_'.join([part for part in photometric_system_parts if not part.isdigit()])
-                
-                if form_data['track_parsec'] == self.parsec_versions['2.0']:
-                    rotation = form_data.get('v_div_vcrit', 'NoRot')
-                    photometric_system_clean += f"_Rot_{rotation}"
+                if dat_content:
+                    if dat_content.startswith('<!DOCTYPE HTML'):
+                        print("Error: The downloaded content is an HTML page, not the expected .dat file.")
+                        print("HTML content:", dat_content[:500])  # Print first 500 characters of the HTML
+                    else:
+                        # Check the actual metallicities and ages in the data
+                        metallicities = set()
+                        ages = set()
+                        for line in dat_content.split('\n'):
+                            if not line.startswith('#'):
+                                parts = line.split()
+                                if len(parts) > 2:
+                                    metallicities.add(float(parts[1]))  # [M/H] is in the second column
+                                    ages.add(float(parts[2]))  # log(age) is in the third column
+                        
+                        print(f"Actual metallicities in the data: {sorted(metallicities)}")
+                        print(f"Actual ages in the data: {sorted(ages)}")
 
-                output_filename = f"IsoParsec_{form_data['track_parsec'].split('_')[-1]}_{photometric_system_clean}_Age_{form_data['isoc_lagelow']}_{form_data['isoc_lageupp']}_{form_data['isoc_dlage']}_MH_{form_data['isoc_metlow']}_{form_data['isoc_metupp']}_{form_data['isoc_dmet']}.set"
-                
-                if dat_content.startswith('<!DOCTYPE HTML'):
-                    print("Error: The downloaded content is an HTML page, not the expected .dat file.")
+                        # Construct the output filename
+                        photometric_system = form_data['photsys_file'].split('/')[-1].replace('tab_mag_', '').replace('.dat', '').replace('_', ' ').title().replace(' ', '_').upper()
+                        photometric_system_parts = photometric_system.split('_')
+                        photometric_system_clean = '_'.join([part for part in photometric_system_parts if not part.isdigit()])
+                        
+                        rotation = form_data.get('track_omegai', 'NoRot')
+                        rotation_str = f"Rot_{rotation}" if rotation != 'NoRot' else ""
+
+                        age_range = f"{min(ages):.2f}_{max(ages):.2f}"
+                        mh_range = f"{min(metallicities):.2f}_{max(metallicities):.2f}"
+
+                        output_filename = f"IsoParsec_{form_data['track_parsec'].split('_')[-1]}_{photometric_system_clean}_{rotation_str}_Age_{age_range}_MH_{mh_range}.set"
+            
+                        with open(output_filename, 'w') as file:
+                            file.write(dat_content)
+                        print(f"Data successfully saved to {output_filename}")
+                        return output_filename, form_data['photometric_input']
                 else:
-                    with open(output_filename, 'w') as file:
-                        file.write(dat_content)
-                    print(f"Data successfully saved to {output_filename}")
-                    # Return necessary data for setting environment variables
-                    return output_filename, form_data['photometric_input']
+                    print("Failed to download .dat file content")
             else:
                 print("Failed to find .dat file link")
+                print("Response content:", response.text[:500])  # Print first 500 characters of the response
         else:
             print("Failed to download data")
             if response:
                 self.parse_errors(response.text)
-
+        return None, None
 
     def _convert_to_table(self, html_content):
         """Convert HTML content to a table."""
@@ -241,125 +267,327 @@ class PARSEC:
             table.append([ele.text.strip() for ele in cols])
         return table
 
+extdict = {
+    'Parsec': {
+        'WFC3_UVIS': {
+            'F218W': 1.663430, 'F225W': 1.653126, 'F275W': 1.472632, 'F336W': 1.652791,
+            'F390W': 1.399138, 'F438W': 1.341482, 'F475W': 1.203670, 'F555W': 1.040890,
+            'F606W': 0.928989, 'F814W': 0.587000, 'F850LP': 0.483688
+        },
+        'ACS_WFC': {
+            'F435W': 1.338790, 'F475W': 1.211790, 'F555W': 1.030650, 'F606W': 0.903280,
+            'F814W': 0.596960
+        },
+        'ACS_HRC': {
+            'F435W': 1.343700, 'F475W': 1.202820, 'F555W': 1.032020, 'F606W': 0.909390,
+            'F814W': 0.585950
+        },
+        'WFPC2': {
+            'F439W': 1.345150, 'F450W': 1.271280, 'F555W': 1.006540, 'F606W': 0.864090,
+            'F814W': 0.603520
+        },
+        'UBVRIJHK': {
+            'U': 1.550000, 'B': 1.310000, 'V': 1.000000, 'R': 0.750000, 'I': 0.480000,
+            'J': 0.290000, 'H': 0.180000, 'K': 0.120000
+        },
+        'Gaia': {'G': 0.836270, 'BP': 1.083370, 'RP': 0.634390}
+    },
+    'Parsec2.0': {
+        'WFC3_UVIS': {
+            'F218W': 1.663430, 'F225W': 1.653126, 'F275W': 1.472632, 'F336W': 1.652791,
+            'F390W': 1.399138, 'F438W': 1.341482, 'F475W': 1.203670, 'F555W': 1.040890,
+            'F606W': 0.928989, 'F814W': 0.587000, 'F850LP': 0.483688
+        },
+        'ACS_WFC': {
+            'F435W': 1.338790, 'F475W': 1.211790, 'F555W': 1.030650, 'F606W': 0.903280,
+            'F814W': 0.596960
+        },
+        'ACS_HRC': {
+            'F435W': 1.343700, 'F475W': 1.202820, 'F555W': 1.032020, 'F606W': 0.909390,
+            'F814W': 0.585950
+        },
+        'WFPC2': {
+            'F439W': 1.345150, 'F450W': 1.271280, 'F555W': 1.006540, 'F606W': 0.864090,
+            'F814W': 0.603520
+        },
+        'UBVRIJHK': {
+            'U': 1.550000, 'B': 1.310000, 'V': 1.000000, 'R': 0.750000, 'I': 0.480000,
+            'J': 0.290000, 'H': 0.180000, 'K': 0.120000
+        },
+        'Gaia': {'G': 0.836270, 'BP': 1.083370, 'RP': 0.634390}
+    },
+    'MIST': {
+        'WFC3_UVIS': {
+            'F218W': 1.663430, 'F225W': 1.653126, 'F275W': 1.472632, 'F336W': 1.652791,
+            'F390W': 1.399138, 'F438W': 1.341482, 'F475W': 1.203670, 'F555W': 1.040890,
+            'F606W': 0.928989, 'F814W': 0.587000, 'F850LP': 0.483688
+        },
+        'ACS_WFC': {
+            'F435W': 1.338790, 'F475W': 1.211790, 'F555W': 1.030650, 'F606W': 0.903280,
+            'F814W': 0.596960
+        },
+        'ACS_HRC': {
+            'F435W': 1.343700, 'F475W': 1.202820, 'F555W': 1.032020, 'F606W': 0.909390, 'F814W': 0.585950
+        },
+        'WFPC2': {
+            'F439W': 1.345150, 'F450W': 1.271280, 'F555W': 1.006540, 'F606W': 0.864090,
+            'F814W': 0.603520
+        },
+        'UBVRI': {
+            'U': 1.550000, 'B': 1.310000, 'V': 1.000000, 'R': 0.750000, 'I': 0.480000
+        },
+        'Gaia': {'G': 0.836270, 'BP': 1.083370, 'RP': 0.634390}
+    }
+}
+
+isoindexdict = {
+    'Parsec': {
+        'WFC3_UVIS': {'F218W': 28, 'F225W': 29, 'F275W': 30, 'F336W': 31, 'F390W': 32, 'F438W': 33, 'F475W': 34, 'F555W': 35, 'F606W': 36, 'F814W': 39, 'F850LP': 40},
+        'ACS_WFC': {'F435W': 28, 'F475W': 29, 'F555W': 30, 'F606W': 31, 'F814W': 34},
+        'ACS_HRC': {'F435W': 32, 'F475W': 33, 'F555W': 35, 'F606W': 36, 'F814W': 41},
+        'WFPC2': {'F439W': 34, 'F450W': 35, 'F555W': 36, 'F606W': 38, 'F814W': 43},
+        'UBVRIJHK': {'U': 28, 'B': 29, 'V': 30, 'R': 31, 'I': 32, 'J': 33, 'H': 34, 'K': 35},
+        'Gaia': {'G': 28, 'BP': 29, 'RP': 30}
+    },
+    'Parsec2.0': {
+        'WFC3_UVIS': {'F218W': 35, 'F225W': 36, 'F275W': 37, 'F336W': 38, 'F390W': 39, 'F438W': 40, 'F475W': 41, 'F555W': 42, 'F606W': 43, 'F814W': 46, 'F850LP': 47},
+        'ACS_WFC': {'F435W': 35, 'F475W': 36, 'F555W': 37, 'F606W': 38, 'F814W': 41},
+        'ACS_HRC': {'F435W': 39, 'F475W': 40, 'F555W': 42, 'F606W': 43, 'F814W': 48},
+        'WFPC2': {'F439W': 41, 'F450W': 42, 'F555W': 43, 'F606W': 45, 'F814W': 50},
+        'UBVRIJHK': {'U': 35, 'B': 36, 'V': 37, 'R': 38, 'I': 39, 'J': 40, 'H': 41, 'K': 42},
+        'Gaia': {'G': 35, 'BP': 36, 'RP': 37}
+    },
+    'MIST': {
+        'WFC3_UVIS': {'F218W': 7, 'F225W': 8, 'F275W': 9, 'F336W': 10, 'F390W': 11, 'F438W': 12, 'F475W': 13, 'F555W': 14, 'F606W': 15, 'F814W': 16, 'F850LP': 17},
+        'ACS_WFC': {'F435W': 7, 'F475W': 8, 'F555W': 9, 'F606W': 10, 'F814W': 11},
+        'ACS_HRC': {'F220W': 9, 'F250W': 10, 'F330W': 11, 'F344N': 12, 'F435W': 13, 'F475W': 14,
+                    'F502N': 15, 'F550M': 16, 'F555W': 17, 'F606W': 18, 'F625W': 19, 'F658N': 20,
+                    'F660N': 21, 'F775W': 22, 'F814W': 23, 'F850LP': 24, 'F892N': 25},
+        'WFPC2': {'F439W': 7, 'F450W': 8, 'F555W': 9, 'F606W': 10, 'F814W': 11},
+        'Stroemgren': {'b': 17, 'y': 18},
+        'UBVRI-Gaia': {'U': 9, 'B': 10, 'V': 11, 'R': 12, 'I': 13, 'J': 14, 'H': 15, 'G': 30, 'BP': 31, 'RP': 32}
+    }
+}
+
 # This class handles scrubbing the downloaded isochrones from CMD for the relevant information
 class UnpackIsoSet:
-    def __init__(self, isodir, instrument, datasource, isomodel='Parsec', photsystem=None, mags=None):
-        self.isodir = isodir
+    def __init__(self, base_dir, instrument, datasource, isomodel='Parsec', photsystem=None, mags=None, rotation = 0.0):
+        self.base_dir = base_dir
         self.instrument = instrument
         self.datasource = datasource
         self.isomodel = isomodel
         self.photsystem = photsystem or instrument
         self.mags = mags
+        self.rotation = rotation
+        self.params = {}
+        self.isodir = base_dir
+        self.analyzer = IsochroneAnalyzer(base_dir, instrument, datasource)
+
+    def get_parameters(self):
+        self.params['isodir'] = self.base_dir
+        self.params['isomodel'] = self.isomodel
+        self.params['photsystem'] = self.photsystem
+        self.params['instrument'] = self.instrument
+        self.params['datasource'] = self.datasource
+
+        available_filters = self.analyzer.list_available_filters(self.isomodel, self.params.get('isosetfile'))
+        if not available_filters:
+            print(f"No filters available for {self.isomodel} model with {self.instrument} instrument.")
+            return
+
+        print("Available filters:")
+        for idx, filt in enumerate(available_filters):
+            print(f"{idx}: {filt}")
+        
+        if self.mags is None:
+            while True:
+                try:
+                    blue_idx = int(input("Enter the index for the blue filter: "))
+                    red_idx = int(input("Enter the index for the red filter: "))
+                    self.mags = [available_filters[blue_idx], available_filters[red_idx]]
+                    break
+                except IndexError:
+                    print("Invalid index. Please try again.")
+                except ValueError:
+                    print("Please enter a valid number.")
+
+        self.params['mags'] = self.mags
+
+    def get_output_dir(self):
+        if self.isomodel == 'Parsec':
+            model_dir = 'Parsec_v1.2S'
+        elif self.isomodel == 'Parsec2.0':
+            model_dir = 'Parsec2.0'
+        else:
+            model_dir = self.isomodel
+
+        return os.path.join(self.base_dir, 'Isochrones', model_dir, self.photsystem)
 
     def get_iso_index(self, mag=None):
-        index_map = {
-            'WFC3_UVIS': {'F438W': 33, 'F475W': 34, 'F555W': 35, 'F606W': 36, 'F814W': 39},
-            'ACS_WFC': {'F435W': 28, 'F475W': 29, 'F555W': 30, 'F606W': 31, 'F814W': 34},
-            'ACS_HRC': {'F435W': 32, 'F475W': 33, 'F555W': 35, 'F606W': 36, 'F814W': 41},
-            'WFPC2': {'F439W': 34, 'F450W': 35, 'F555W': 36, 'F606W': 38, 'F814W': 43}
-        }
+        if self.isomodel not in isoindexdict or self.photsystem not in isoindexdict[self.isomodel]:
+            return {}
         if mag:
-            return index_map.get(self.photsystem, {}).get(mag, None)
-        return index_map.get(self.photsystem, {})
+            return isoindexdict[self.isomodel][self.photsystem].get(mag, None)
+        return isoindexdict[self.isomodel][self.photsystem]
     
     def extinction_factors(self, mag):
-        factors = {
-            'WFC3_UVIS': {'F438W': 1.34148, 'F475W': 1.20367, 'F555W': 1.04089, 'F814W': 0.587},
-            'ACS_WFC': {'F435W': 1.33879, 'F475W': 1.21179, 'F555W': 1.03065, 'F606W': 0.90328, 'F814W': 0.59696},
-            'ACS_HRC': {'F435W': 1.34370, 'F475W': 1.20282, 'F555W': 1.03202, 'F606W': 0.90939, 'F814W': 0.58595},
-            'WFPC2': {'F439W': 1.34515, 'F450W': 1.27128, 'F555W': 1.00654, 'F606W': 0.86409, 'F814W': 0.60352}
-        }
-        return factors.get(self.photsystem, {}).get(mag, 1.0)
+        if self.isomodel not in extdict or self.photsystem not in extdict[self.isomodel]:
+            return 1.0
+        return extdict[self.isomodel][self.photsystem].get(mag, 1.0)
     
     def list_available_filters(self):
-        filters_map = {
-            'WFC3_UVIS': ['F438W', 'F475W', 'F555W', 'F606W', 'F814W'],
-            'ACS_WFC': ['F435W', 'F475W', 'F555W', 'F606W', 'F814W'],
-            'ACS_HRC': ['F435W', 'F475W', 'F555W', 'F606W', 'F814W'],
-            'WFPC2': ['F439W', 'F450W', 'F555W', 'F606W', 'F814W']
-        }
-        return filters_map.get(self.photsystem, [])
+        if self.isomodel not in isoindexdict or self.photsystem not in isoindexdict[self.isomodel]:
+            return []
+        return list(isoindexdict[self.isomodel][self.photsystem].keys())
 
     def read_iso_set(self, isosetfile):
-        with open(isosetfile) as f:
+        self.params['isosetfile'] = isosetfile
+        
+        # Only call get_parameters() if mags haven't been set yet
+        if self.mags is None:
+            self.get_parameters()  # This will prompt for filter selection
+        else:
+            # If mags are already set, just update the other parameters
+            self.params['isodir'] = self.base_dir
+            self.params['isomodel'] = self.isomodel
+            self.params['photsystem'] = self.photsystem
+            self.params['instrument'] = self.instrument
+            self.params['datasource'] = self.datasource
+            self.params['mags'] = self.mags
+
+        print(f"Reading isochrone set file: {isosetfile}")
+        print(f"Isomodel: {self.isomodel}")
+
+        output_dir = self.get_output_dir()
+        os.makedirs(output_dir, exist_ok=True)
+
+        if self.isomodel in ['Parsec', 'Parsec2.0']:
+            self.read_iso_set_parsec(isosetfile, output_dir)
+        elif self.isomodel == 'MIST':
+            self.read_iso_set_mist(isosetfile, output_dir)
+        else:
+            raise ValueError(f"Unsupported isomodel: {self.isomodel}")
+        
+    def read_iso_set_parsec(self, isosetfile, output_dir):
+        #print("Starting to read Parsec isochrone set")
+        with open(isosetfile, 'r') as f:
             lines = f.readlines()
+        nlines = len(lines)
+        #print(f"Read {nlines} lines from the file")
 
-        if not self.mags:
-            available_filters = self.list_available_filters()
-            print("Available filters:")
-            for idx, filt in enumerate(available_filters):
-                print(f"{idx}: {filt}")
+        blue = self.mags[0]
+        red = self.mags[1]
+        isomodel = self.isomodel
+        photsystem = self.photsystem
+        magindices = list(isoindexdict[isomodel][photsystem].values())
+        fblue = extdict[isomodel][photsystem][blue]
+        fred = extdict[isomodel][photsystem][red]
 
-            blue_idx = int(input("Enter the index for the blue filter: "))
-            red_idx = int(input("Enter the index for the red filter: "))
+        #print(f"Mag indices: {magindices}")
+        #print(f"Extinction factors: blue={fblue}, red={fred}")
 
-            self.mags = [available_filters[blue_idx], available_filters[red_idx]]
-
-        blue, red = self.mags
-        iblue = self.get_iso_index(blue)
-        ired = self.get_iso_index(red)
-        fblue = self.extinction_factors(blue)
-        fred = self.extinction_factors(red)
-
-        if iblue is None or ired is None:
-            raise ValueError(f"Invalid magnitudes: {blue}, {red} for photometric system {self.photsystem}")
-
-        # Currently hardcoding columns read in. icol format = Mini, Mass, LogL, LogTe
+        # 3 = Mini = 0
+        # 5 = Mass = 1
+        # 6 = logL = 2
+        # 7 = logTe = 3
         icols = [3, 5, 6, 7]
 
         # Create a dictionary for columns in isofile.
         colsindex = len(icols)
-        indexdict = {'Mini': 0, 'Mass': 1, 'LogL': 2, 'LogTe': 3}
-        for key, value in self.get_iso_index().items():  # Use get_iso_index to get all indices
+        indexdict = {'Mini': 0, 'Mass': 1, 'LogL': 2, 'logT': 3}
+        for key in isoindexdict[isomodel][photsystem]:
             indexdict[key] = colsindex
             colsindex += 1
 
         # Save the dictionary to a file.
-        indexdictfile = os.path.join(self.isodir, 'indexdict.pk')
+        indexdictfile = os.path.join(output_dir, 'indexdict.pk')
         with open(indexdictfile, 'wb') as f:
             pickle.dump(indexdict, f)
 
-        magindices = list(self.get_iso_index().values())
         icols.extend(magindices)
 
-        # Below splits the combined isochrones, into Age, Metallicity .npz combinations
+        iiso = 0
+        #lastmh = -8.0
+        #lastlogage = 0.
+        lastmh = None
+        lastlogage = None
+        printisodata = False  # Don't print in the first unique isochrone.
         isodata = []
-        lastmh = -8.0
-        lastlogage = 0.
+
+        for i in range(nlines):
+            if not lines[i].strip().startswith('#'):
+                temp = [float(ii) for ii in lines[i].strip().split()]
+                data = [temp[ii] for ii in icols]
+
+                mh = temp[1] + 0.  # Adding 0. to make sure that 0. is positive not -0.
+                logage = temp[2]
+                if (mh != lastmh) or (logage != lastlogage):
+                    # The start of a new isochrone
+                    if printisodata:
+                        isodata = np.array(isodata)
+                        isofile = os.path.join(output_dir, f'Iso_{lastlogage:.2f}_{lastmh:.2f}_{self.rotation:.2f}_0.0.npz')
+                        print(f"Saving isochrone file: {isofile}, shape: {np.shape(isodata)}")
+                        np.savez(isofile, isodata=isodata, isomodel=isomodel, photsystem=photsystem, indexdict=indexdict, fblue=fblue, fred=fred, rotation=self.rotation)
+                    isodata = []
+                    # Print the previous isochrone from now on.
+                    printisodata = True
+                isodata.append(data)
+                lastmh = mh
+                lastlogage = logage
+
+        # Write the last isochrone to file
+        if isodata:
+            isodata = np.array(isodata)
+            isofile = os.path.join(output_dir, f'Iso_{lastlogage:.2f}_{lastmh:.2f}_{self.rotation:.2f}_0.0.npz')
+            print(f"Saving final isochrone file: {isofile}, shape: {np.shape(isodata)}")
+            np.savez(isofile, isodata=isodata, isomodel=isomodel, photsystem=photsystem, indexdict=indexdict, fblue=fblue, fred=fred, rotation=self.rotation)
+
+        print("Finished reading Parsec isochrone set")
+
+    def read_iso_set_mist(self, isosetfile, output_dir):
+        with open(isosetfile) as f:
+            lines = f.readlines()
+
+        blue, red = self.mags
+        isomodel = self.isomodel
+        photsystem = self.photsystem
+
+        # Get the correct indices for the selected filters
+        blue_index = isoindexdict[isomodel][photsystem][blue.split('_')[-1]]
+        red_index = isoindexdict[isomodel][photsystem][red.split('_')[-1]]
+
+        # Get the extinction factors
+        fblue = extdict[isomodel][photsystem].get(blue.split('_')[-1], 1.0)
+        fred = extdict[isomodel][photsystem].get(red.split('_')[-1], 1.0)
+
+        icols = [2, 3, 6, 4]  # Mini, Mass, logL, logTe
+        icols.extend([blue_index, red_index])
+
+        indexdict = {'Mini': 0, 'Mass': 1, 'LogL': 2, 'logT': 3, blue: 4, red: 5}
+
+        indexdictfile = os.path.join(output_dir, 'indexdict.pk')
+        with open(indexdictfile, 'wb') as f:
+            pickle.dump(indexdict, f)
+
+        isodata = []
+        lastmh = None
+        lastlogage = None
         printisodata = False
-        first_isofile = None  # Initialize first_isofile
 
         for line in lines:
-            if line.strip()[0] != '#':
-                temp = [float(i) for i in line.strip().split()]
-                data = [temp[i] for i in icols]
+            if len(line.strip()) > 0 and line.strip()[0] != '#':
+                temp = [float(ii) for ii in line.strip().split()]
+                data = [temp[ii] for ii in icols]
 
-                mh = temp[1]+0 #Make sure that 0. is positive
-                logage = temp[2]
-                if (mh != lastmh or logage != lastlogage):
-                    if (printisodata):
+                mh = float(temp[7])
+                logage = float(temp[1])
+                if mh != lastmh or logage != lastlogage:
+                    if printisodata:
                         isodata = np.array(isodata)
-                        isofile = os.path.join(self.isodir, f"Iso_{lastlogage:.2f}_{lastmh:.2f}_0.0.npz")
-                        print(isofile, np.shape(isodata))
-                        np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, indexdict=indexdict, fblue=fblue, fred=fred)
-
-                        '''# Save the structure and contents of the first isofile
-                        if first_isofile is None:
-                            first_isofile = isofile
-                            with open(f"{first_isofile}_structure.txt", 'w') as txt_file:
-                                txt_file.write(f"File: {first_isofile}\n")
-                                txt_file.write(f"Shape: {np.shape(isodata)}\n")
-                                txt_file.write("Contents:\n")
-                                np.savetxt(txt_file, isodata, fmt='%.6e')
-                                
-                                # Load the .npz file and write its contents
-                                with np.load(isofile, allow_pickle=True) as npzfile:
-                                    for key, value in npzfile.items():
-                                        txt_file.write(f"\nArray: {key}\n")
-                                        txt_file.write(f"Shape: {value.shape}\n")
-                                        if key != 'isodata':
-                                            txt_file.write(f"Data:\n{value}\n")'''
-
+                        isofile = os.path.join(output_dir, f'Iso_{float(lastlogage):.2f}_{float(lastmh):.2f}_{float(self.rotation):.2f}_0.0.npz')
+                        print(f"Saving isochrone file: {isofile}, shape: {np.shape(isodata)}")
+                        np.savez(isofile, isodata=isodata, isomodel=isomodel, photsystem=photsystem, 
+                                indexdict=indexdict, fblue=fblue, fred=fred, rotation=float(self.rotation))
                     isodata = []
                     printisodata = True
                 isodata.append(data)
@@ -368,26 +596,72 @@ class UnpackIsoSet:
 
         if printisodata:
             isodata = np.array(isodata)
-            isofile = os.path.join(self.isodir, f"Iso_{lastlogage:.2f}_{lastmh:.1f}_0.0.npz")
-            print(isofile, np.shape(isodata))
-            np.savez(isofile, isodata=isodata, isomodel=self.isomodel, photsystem=self.photsystem, indexdict=indexdict, fblue=fblue, fred=fred)
+            isofile = os.path.join(output_dir, f'Iso_{float(lastlogage):.2f}_{float(lastmh):.2f}_{float(self.rotation):.2f}_0.0.npz')
+            print(f"Saving final isochrone file: {isofile}, shape: {np.shape(isodata)}")
+            np.savez(isofile, isodata=isodata, isomodel=isomodel, photsystem=photsystem, 
+                    indexdict=indexdict, fblue=fblue, fred=fred, rotation=float(self.rotation))
 
-            '''# Save the structure and contents of the first isofile if not already saved
-            if first_isofile is None:
-                first_isofile = isofile
-                with open(f"{first_isofile}_structure.txt", 'w') as txt_file:
-                    txt_file.write(f"File: {first_isofile}\n")
-                    txt_file.write(f"Shape: {np.shape(isodata)}\n")
-                    txt_file.write("Contents:\n")
-                    np.savetxt(txt_file, isodata, fmt='%.6e')
-                    
-                    # Load the .npz file and write its contents
-                    with np.load(isofile, allow_pickle=True) as npzfile:
-                        for key, value in npzfile.items():
-                            txt_file.write(f"\nArray: {key}\n")
-                            txt_file.write(f"Shape: {value.shape}\n")
-                            if key != 'isodata':
-                                txt_file.write(f"Data:\n{value}\n")'''
+        print(f"Finished processing {isofile}")
+
+    @classmethod
+    def unpack_isochrone(cls, file, isomodel, base_dir='/home/joe/Research', rotation = 0.0):
+        # Get all unique instruments/photsystems from isoindexdict
+        all_instruments = set()
+        for model in isoindexdict.values():
+            all_instruments.update(model.keys())
+        all_instruments = sorted(all_instruments)
+
+        print(f"\nAttempting to unpack file: {file}")
+
+        # Present the list of available instruments/photsystems
+        print("Available instruments/photsystems:")
+        for idx, inst in enumerate(all_instruments):
+            print(f"{idx}: {inst}")
+
+        while True:
+            try:
+                inst_idx = int(input("Please enter the desired index for the instrument/photsystem: "))
+                instrument = all_instruments[inst_idx]
+                photsystem = instrument
+                break
+            except (ValueError, IndexError):
+                print("Invalid input. Please enter a valid index.")
+        
+        datasource = get_datasource(instrument)
+        
+        unpacker = cls(base_dir, instrument, datasource, isomodel, photsystem=photsystem, rotation=rotation)
+        
+        # Ask for filter indices
+        available_filters = unpacker.list_available_filters()
+        print("Available filters:")
+        for idx, filt in enumerate(available_filters):
+            print(f"{idx}: {filt}")
+
+        while True:
+            try:
+                blue_idx = int(input("Enter the index for the blue filter: "))
+                red_idx = int(input("Enter the index for the red filter: "))
+                unpacker.mags = [available_filters[blue_idx], available_filters[red_idx]]
+                break
+            except (ValueError, IndexError):
+                print("Invalid input. Please enter valid indices.")
+        
+        # Process the file
+        unpacker.read_iso_set(file)
+
+    @staticmethod
+    def extract_rotation(filename):
+        # For MIST and Parsec2.0 files
+        match = re.search(r'Rot_(\d+\.\d+)', filename)
+        if match:
+            return float(match.group(1))
+        # For Parsec1.2S files (always 0.0)
+        elif 'v1.2S' in filename:
+            return 0.0
+        else:
+            return 0.0 # Default to 0.0 if no rotation found
+        # If no rotation found in filename
+        return None
 
 class IsochroneAnalyzer:
     def __init__(self, isodir, instrument, datasource):
@@ -415,18 +689,42 @@ class IsochroneAnalyzer:
         return indices[0][0]
     
     # List all unique filters available across all instruments
-    def list_available_filters(self):
-        index_map = {
-            'WFC3': {'F438W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
-            'ACS_WFC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
-            'ACS_HRC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
-            'WFPC2': {'F439W': 4, 'F450W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8}
-        }
-        unique_filters = set()
-        for filters in index_map.values():
-            unique_filters.update(filters.keys())
-        print("Currently available filters:", ', '.join(sorted(unique_filters)))
-        return unique_filters
+    def list_available_filters(self, isomodel=None, filename=None):
+        if isomodel == 'MIST' and filename:
+            return self.get_mist_filters(filename)
+        else:
+            index_map = {
+                'WFC3': {'F438W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
+                'ACS_WFC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
+                'ACS_HRC': {'F435W': 4, 'F475W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8},
+                'WFPC2': {'F439W': 4, 'F450W': 5, 'F555W': 6, 'F606W': 7, 'F814W': 8}
+            }
+            unique_filters = set()
+            for filters in index_map.values():
+                unique_filters.update(filters.keys())
+            print("Currently available filters:", ', '.join(sorted(unique_filters)))
+            return sorted(unique_filters)
+        
+    def get_mist_filters(self, filename):
+        filters = []
+        photsystem = None
+        print(f"Reading MIST file: {filename}")
+        with open(filename, 'r') as f:
+            for line in f:
+                if line.startswith('#'):
+                    #print(f"Header line: {line.strip()}")
+                    if 'photometric system' in line.lower():
+                        photsystem = line.split('=')[-1].strip()
+                        #print(f"Detected photometric system: {photsystem}")
+                    elif 'EEP' in line and 'phase' in line:
+                        # This line contains the column headers
+                        parts = line.split()
+                        filters = [part for part in parts if part not in ['#', 'EEP', 'log10_isochrone_age_yr', 'initial_mass', 'star_mass', 'log_Teff', 'log_g', 'log_L', '[Fe/H]_init', '[Fe/H]', 'phase']]
+                        break  # We've found our filters, no need to continue
+                else:
+                    break  # Stop when we reach the data section
+        #print(f"Found filters: {filters}")
+        return filters
 
     async def check_max_iso_age(self, ages, zs):
         # Ensure isodir is correctly set, default to current working directory if not
@@ -643,6 +941,51 @@ photometric_systems = {
     # Add more mappings as needed
 }
 
+def model_selector(directory='.'):
+    # Get all .set and .cmd files in the directory
+    files = glob.glob(os.path.join(directory, '*.set')) + glob.glob(os.path.join(directory, '*.cmd'))
+    
+    if not files:
+        print("No .set or .cmd files found in the current directory.")
+        return
+
+    print("Available files:")
+    for idx, file in enumerate(files):
+        print(f"{idx}: {os.path.basename(file)}")
+
+    # Get user input for file selection
+    while True:
+        try:
+            selections = input("Enter the indices of the files you want to unpack (comma-separated): ").split(',')
+            selected_indices = [int(idx.strip()) for idx in selections]
+            selected_files = [files[idx] for idx in selected_indices if 0 <= idx < len(files)]
+            break
+        except ValueError:
+            print("Invalid input. Please enter comma-separated numbers.")
+
+    # Categorize selected files
+    parsec_v1_2s = []
+    parsec_v2_0 = []
+    mist = []
+
+    for file in selected_files:
+        if "IsoParsec_v1.2S" in file:
+            parsec_v1_2s.append(file)
+        elif "IsoParsec_v2.0" in file:
+            parsec_v2_0.append(file)
+        elif "MIST" in file or file.endswith('.cmd'):
+            mist.append(file)
+
+    # Print results
+    if parsec_v1_2s:
+        print(f"Using Parsec_v1.2S unpacking logic for files: {[os.path.basename(f) for f in parsec_v1_2s]}")
+    if parsec_v2_0:
+        print(f"Using Parsec_v2.0 unpacking logic for files: {[os.path.basename(f) for f in parsec_v2_0]}")
+    if mist:
+        print(f"Using MIST unpacking logic for files: {[os.path.basename(f) for f in mist]}")
+
+    return parsec_v1_2s, parsec_v2_0, mist
+
 async def main():
     parser = argparse.ArgumentParser(description="Process isochrone data and interact with CMD website.")
     parser.add_argument('--UnpackIsoSet', action='store_true', help="Unpack an isochrone set.")
@@ -675,6 +1018,7 @@ async def main():
             if version_choice == "1":
                 parsec_version = "1.2S"
                 rotation_values = [None]  # No rotation for v1.2S
+                isomodel = 'Parsec'
             elif version_choice == "2":
                 parsec_version = "2.0"
                 print("\nAvailable rotation options for PARSEC v2.0:")
@@ -682,10 +1026,12 @@ async def main():
                     print(f"{i}. ωi={omega}")
                 rotation_choices = input("Enter the numbers of desired rotation options (comma-separated): ")
                 rotation_values = [list(parsec.rotation_options.keys())[int(choice)-1] for choice in rotation_choices.split(',')]
+                isomodel = 'Parsec2.0'
             else:
                 print("Invalid choice. Defaulting to PARSEC v1.2S")
                 parsec_version = "1.2S"
                 rotation_values = [None]
+                isomodel = 'Parsec'
         
             '''
             User input for specific parameters. Currently has a few assumptions:
@@ -768,6 +1114,7 @@ async def main():
                 'submit_form': 'Submit'
             }
 
+            downloaded_files = []
             for rotation in rotation_values:
                 # Add delay at the start of each iteration, except for the first one
                 if rotation != rotation_values[0]:
@@ -776,9 +1123,14 @@ async def main():
                 form_data = form_data.copy()
                 
                 if rotation:
-                    form_data['v_div_vcrit'] = parsec.rotation_options[rotation]
+                    if parsec_version == "2.0":
+                        form_data['track_omegai'] = rotation
+                    else:
+                        form_data['v_div_vcrit'] = parsec.rotation_options[rotation]
 
                 output_filename, instrument_input = await parsec.download_isochrone(form_data)
+                if output_filename and instrument_input:
+                    downloaded_files.append(output_filename)
 
                 if output_filename and instrument_input:
                     # Set environment variables immediately after download, this will allow use of --UnpackIsoSet during same session without having to manually input values
@@ -802,65 +1154,58 @@ async def main():
                         isodir = os.path.dirname(output_filename)
                     
                     if args.UnpackIsoSet:
-                        instrument_input = os.getenv('INSTRUMENT', 'Unknown Instrument')
-                        print(f"Proceeding to unpack isochrone data for {instrument_input}")
-                        datasource = get_datasource(instrument_input)
-                        unpacker = UnpackIsoSet(isodir, instrument_input, datasource, photsystem=instrument_input)
-                        
-                        available_filters = unpacker.list_available_filters()
-                        print("Available filters:")
-                        for idx, filt in enumerate(available_filters):
-                            print(f"{idx}: {filt}")
-
-                        blue_idx = int(input("Enter the index for the blue filter: "))
-                        red_idx = int(input("Enter the index for the red filter: "))
-
-                        mags = [available_filters[blue_idx], available_filters[red_idx]]
-                        unpacker.mags = mags
-                        
-                        unpacker.read_iso_set(output_filename)
-                        print("Data unpacking complete.\n")
+                        for output_filename in downloaded_files:
+                            rotation_value = UnpackIsoSet.extract_rotation(output_filename)
+                            UnpackIsoSet.unpack_isochrone(output_filename, isomodel, rotation=rotation_value)
                 else:
                     print(f"Failed to download or incorrect data received for rotation ωi={rotation if rotation else 'N/A'}")
 
         elif choice == "2":
             mist_downloader = MISTDownloader()
-            mist_downloader.run()
+            rotation = mist_downloader.run()
+            isomodel = 'MIST'
+
+            if args.UnpackIsoSet:
+                if isinstance(mist_downloader.output_filename, list):
+                    for filename in mist_downloader.output_filename:
+                        UnpackIsoSet.unpack_isochrone(filename, isomodel, rotation=rotation)
+                elif mist_downloader.output_filename:
+                    UnpackIsoSet.unpack_isochrone(mist_downloader.output_filename, isomodel, rotation=rotation)
+                else:
+                    print("No output file was generated by MIST downloader.")
         else:
             print("Invalid choice. Please enter 1 or 2.")    
 
     # Can use UnpackIsoSet without download_iso if you have the necessary information.
     # If you ran --download_iso in the same terminal session, it can automatically fetch everything necessary with environment variables
     if args.UnpackIsoSet and not args.download_iso:
-        instrument = os.getenv('INSTRUMENT', input("Enter the instrument (e.g., ACS_HRC, ACS_WFC): "))
-        datasource = get_datasource(instrument)
-        unpacker = UnpackIsoSet(isodir, instrument, datasource, photsystem=instrument)
+        parsec_v1_2s, parsec_v2_0, mist = model_selector()
 
-        available_filters = unpacker.list_available_filters()
-        print("Available filters:")
-        for idx, filt in enumerate(available_filters):
-            print(f"{idx}: {filt}")
+        all_files = parsec_v1_2s + parsec_v2_0 + mist
+        if not all_files:
+            print("No files selected for unpacking.")
+            return
 
-        blue_idx = int(input("Enter the index for the blue filter: "))
-        red_idx = int(input("Enter the index for the red filter: "))
+        for file in all_files:
+            filename = os.path.basename(file)
+            if file in parsec_v1_2s:
+                isomodel = 'Parsec'
+                rotation = 0.0
+            elif file in parsec_v2_0:
+                isomodel = 'Parsec2.0'
+                rotation = UnpackIsoSet.extract_rotation(filename)
+            elif file in mist:
+                isomodel = 'MIST'
+                rotation = UnpackIsoSet.extract_rotation(filename)
+            else:
+                isomodel = input(f"Enter the isochrone model for {file} (Parsec, Parsec2.0, or MIST): ")
+                rotation = float(input(f"Enter the rotation value for {file}: "))
 
-        mags = [available_filters[blue_idx], available_filters[red_idx]]
-        unpacker.mags = mags
-
-        # List all .set files in the working directory
-        set_files = glob.glob("*.set")
-        print("Available .set files:")
-        for idx, set_file in enumerate(set_files):
-            print(f"{idx}: {set_file}")
-        print(f"{len(set_files)}: Enter the filename manually")
-
-        file_choice = int(input("Enter the index of the .set file to unpack: "))
-        if file_choice == len(set_files):
-            isosetfile = input("Enter the isochrone set file name: ")
-        else:
-            isosetfile = set_files[file_choice]
-
-        unpacker.read_iso_set(isosetfile)
+            if rotation is None:
+                print(f"Warning: Could not determine rotation for {filename}. Assuming rotation = 0.0")
+                rotation = 0.0
+            
+            UnpackIsoSet.unpack_isochrone(file, isomodel, rotation=rotation)
 
     # This argument will check the max isochrone age you should consider based on several parameters
     if args.MaxIsoAge:
