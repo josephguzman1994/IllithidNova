@@ -141,7 +141,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
     - **Error Handling**: Provides robust error handling to manage and report issues like connection timeouts or data retrieval errors.
     - **Support for Multiple Photometric System Files**: Users can choose from predefined photometric systems, or add new ones to the `photometric_systems` dictionary, which maps system names to corresponding data file paths.
     - **Direct Data Download and Save**: Automatically downloads the corresponding `.dat` (relabeled to `.set`) file containing the isochrone data, and saves it locally, handling any necessary URL corrections and format validations.
-  - **Data Unpacking**: Converts downloaded `.set` files into `.npz` files, separating data into individual isochrones separated by appropriate age, metallicity combinations.
+  - **Data Unpacking**: Converts downloaded `.set` or `.cmd` files into `.npz` files, separating data into individual isochrones separated by appropriate age, metallicity and rotation combinations.
   - **Flexible Directory Handling**: Users can specify the output directory for unpacked files or use the default working directory.
   - **Plotting Isochrones**: Provides functionality to plot isochrones by age or metallicity, and single isochrone diagrams.
   - **Maximum Isochrone Age Check**: Allows users to check the maximum isochrone age against table limits to ensure data integrity.
@@ -173,15 +173,20 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   - `--MaxIsoAge`: Check the maximum isochrone age against table limits.
   
   ### Examples
-  1. **Downloading and Unpacking PARSEC isochrones**
+  1. **Downloading and Unpacking isochrones**
   bash ```python3 Gale.py --download_iso --UnpackIsoSet```
   
-  &emsp; This command downloads the isochrone data based on user inputs and immediately unpacks it into the current directory. Utilizes environment variables to minimize user input. The structure of the `.npz` files are as follows: `isodata` which has 4+ columns: `"Mini", "Mass", "LogL", "LogTe"` and several columns which refer to our commonly used filters, then `isomodel` which refers to Parsec v1.2S in this case. `photsystem` which refers to the scientific instrument of interest, `indexdict` which defines the indices for the filters of interest, `fblue` the extinction scaling factor for the blue band, `fred` the extinction scaling factor for the red band.
+  &emsp; This command downloads the isochrone data based on user inputs and immediately unpacks it into an appropriate directory. You can utilize the `--download_iso` command by itself should you not want to unpack right away. These commands utilize environment variables to minimize user input. The structure of the unpacked `.npz` files are as follows: `isodata` which has 4+ columns: `"Mini", "Mass", "LogL", "LogTe"` and several columns which refer to our commonly used filters, then `isomodel` which refer to Parsec v1.2S, Parsec 2.0, or MIST in this case, `photsystem` which refers to the scientific instrument of interest (e.g. ACS_HRC), `indexdict` which defines the indices for the filters of interest (a mapping of key value pairs so that should your data be in two specific filters you can map to the columns you specifically care about), `fblue` the extinction scaling factor for the blue band, `fred` the extinction scaling factor for the red band.
   
-  2. **Unpacking Existing Data and Choosing Output Directory**
+  2. **Unpacking Existing Data**
+  bash ```python3 Gale.py --UnpackIsoSet```
+
+  &emsp; Calling `UnpackIsoSet` will search the current working directory for all potentially relevant files (`.set` or `.cmd`), then automatically pipes unpacked files to an isochrone directory and organizes them by isomodel and photometric system. Currently, my system directory configuration is hardcoded and the base path should be changed to match your system.
+
+  3. **Unpack Existing Data into specified directory**
   bash ```python3 Gale.py --UnpackIsoSet --isodir /path/to/directory```
   
-  &emsp; This uses an existing `.set` file to unpack the data in a specified directory. If you ran ```--download_iso``` in the same terminal session, it will use the environment variables to automatically find the output files. Otherwise, you will be prompted manually define the necessary files with terminal input.
+  &emsp; Should you want to pipe your unpacked isochrones into a unique specified directory, call this argument. It uses an existing `.set` file to unpack the data in a specified directory.
   
   ## Notes
   - Ensure that your internet connection is stable when downloading data from hosting servers
