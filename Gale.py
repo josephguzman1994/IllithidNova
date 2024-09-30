@@ -507,10 +507,10 @@ class UnpackIsoSet:
         icols.extend(magindices)
 
         iiso = 0
-        #lastmh = -8.0
-        #lastlogage = 0.
-        lastmh = None
-        lastlogage = None
+        lastmh = -8.0
+        lastlogage = 0.
+        #lastmh = None
+        #lastlogage = None
         printisodata = False  # Don't print in the first unique isochrone.
         isodata = []
 
@@ -570,8 +570,10 @@ class UnpackIsoSet:
             pickle.dump(indexdict, f)
 
         isodata = []
-        lastmh = None
-        lastlogage = None
+        lastmh = -8.0
+        lastlogage = 0.
+        #lastmh = None
+        #lastlogage = None
         printisodata = False
 
         for line in lines:
