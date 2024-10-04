@@ -525,7 +525,7 @@ class UnpackIsoSet:
                     # The start of a new isochrone
                     if printisodata:
                         isodata = np.array(isodata)
-                        isofile = os.path.join(output_dir, f'Iso_{lastlogage:.2f}_{lastmh:.2f}_{self.rotation:.2f}_0.0.npz')
+                        isofile = os.path.join(output_dir, f'Iso_{lastlogage:.2f}_{lastmh:.2f}_{self.rotation:.2f}.npz')
                         print(f"Saving isochrone file: {isofile}, shape: {np.shape(isodata)}")
                         np.savez(isofile, isodata=isodata, isomodel=isomodel, photsystem=photsystem, indexdict=indexdict, fblue=fblue, fred=fred, rotation=self.rotation)
                     isodata = []
@@ -538,7 +538,7 @@ class UnpackIsoSet:
         # Write the last isochrone to file
         if isodata:
             isodata = np.array(isodata)
-            isofile = os.path.join(output_dir, f'Iso_{lastlogage:.2f}_{lastmh:.2f}_{self.rotation:.2f}_0.0.npz')
+            isofile = os.path.join(output_dir, f'Iso_{lastlogage:.2f}_{lastmh:.2f}_{self.rotation:.2f}.npz')
             print(f"Saving final isochrone file: {isofile}, shape: {np.shape(isodata)}")
             np.savez(isofile, isodata=isodata, isomodel=isomodel, photsystem=photsystem, indexdict=indexdict, fblue=fblue, fred=fred, rotation=self.rotation)
 
@@ -586,7 +586,7 @@ class UnpackIsoSet:
                 if mh != lastmh or logage != lastlogage:
                     if printisodata:
                         isodata = np.array(isodata)
-                        isofile = os.path.join(output_dir, f'Iso_{float(lastlogage):.2f}_{float(lastmh):.2f}_{float(self.rotation):.2f}_0.0.npz')
+                        isofile = os.path.join(output_dir, f'Iso_{float(lastlogage):.2f}_{float(lastmh):.2f}_{float(self.rotation):.2f}.npz')
                         print(f"Saving isochrone file: {isofile}, shape: {np.shape(isodata)}")
                         np.savez(isofile, isodata=isodata, isomodel=isomodel, photsystem=photsystem, 
                                 indexdict=indexdict, fblue=fblue, fred=fred, rotation=float(self.rotation))
@@ -598,7 +598,7 @@ class UnpackIsoSet:
 
         if printisodata:
             isodata = np.array(isodata)
-            isofile = os.path.join(output_dir, f'Iso_{float(lastlogage):.2f}_{float(lastmh):.2f}_{float(self.rotation):.2f}_0.0.npz')
+            isofile = os.path.join(output_dir, f'Iso_{float(lastlogage):.2f}_{float(lastmh):.2f}_{float(self.rotation):.2f}.npz')
             print(f"Saving final isochrone file: {isofile}, shape: {np.shape(isodata)}")
             np.savez(isofile, isodata=isodata, isomodel=isomodel, photsystem=photsystem, 
                     indexdict=indexdict, fblue=fblue, fred=fred, rotation=float(self.rotation))
