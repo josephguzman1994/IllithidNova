@@ -984,9 +984,6 @@ class PlotManager:
         # Brighter stars should have larger sizes, so we invert the magnitude scale
         # Normalize sizes: The size calculation here is arbitrary and can be adjusted as needed
         avg_mag = (blue_mag + red_mag) / 2
-        min_mag = np.min(avg_mag)
-        max_size = 150
-        sizes = max_size * (1 / (avg_mag - min_mag + 1))  # +1 to avoid division by zero
 
         # This plot can output an offset for the x-axis and/or y-axis leading to more confusing tick labels
         base_ra = min(ra)
@@ -997,44 +994,57 @@ class PlotManager:
 
         fig = plt.figure(figsize=(8, 8))
 
+        # If using the brightest star, exclude it from the average magnitude calculation
         if self.use_brightest_star:
             print("Using brightest star for special marker (sizing plot)")
             brightest_index = np.argmin(avg_mag)
             special_ra, special_dec = ra[brightest_index], dec[brightest_index]
             special_label = f"{obj_name}"
-            special_size = sizes[brightest_index]
-            
+            special_size = max_size = 150  # Use maximum size for the special marker
+
             # Remove the brightest star from the data
             mask = np.ones(len(ra), dtype=bool)
             mask[brightest_index] = False
             ra_filtered = ra[mask]
             dec_filtered = dec[mask]
-            sizes_filtered = sizes[mask]
-            
-            # Plot all stars except the brightest
-            plt.scatter(ra_filtered, dec_filtered, s=sizes_filtered, alpha=0.6)
+            sizes_filtered = sizes = max_size * (1 / (avg_mag[mask] - np.min(avg_mag[mask]) + 1))
+            avg_mag_filtered = avg_mag[mask]
         else:
             print("Using Simbad catalog position for special marker (sizing plot)")
             special_ra, special_dec = self.sn_ra, self.sn_dec
             special_label = f"{obj_name} (Simbad)"
-            special_size = max_size #Use maximum size for Simbad position
+            special_size = max_size = 150  # Use maximum size for Simbad position
 
-            # Plot all stars
-            plt.scatter(ra, dec, s=sizes, alpha=0.6)
+            # Use all stars for plotting
+            ra_filtered = ra
+            dec_filtered = dec
+            sizes_filtered = sizes = max_size * (1 / (avg_mag - np.min(avg_mag) + 1))
+            avg_mag_filtered = avg_mag
 
+        # Plot all stars
+        scatter = plt.scatter(ra_filtered, dec_filtered, s=sizes_filtered, alpha=0.6)
         plt.scatter(special_ra, special_dec, color='red', marker='*', s=special_size, label=special_label)
 
-        #plt.scatter(sn_ra, sn_dec, color='red', marker='*', label=f"{obj_name}", s=200)  # Supernova with fixed larger size
+        # Retrieve the color used by the scatter plot
+        data_color = scatter.get_facecolor()[0]
+
+        # Add legend for magnitude sizes
+        legend_mags = np.linspace(np.min(avg_mag_filtered), np.max(avg_mag_filtered), num=4)  # Choose 4 representative magnitudes
+        legend_sizes = max_size * (1 / (legend_mags - np.min(avg_mag_filtered) + 1))
+        for mag, size in zip(legend_mags, legend_sizes):
+            plt.scatter([], [], s=size, color=data_color, label=f'Mag: {mag:.1f}', alpha=0.6)
+
         plt.xlabel('RA (deg)', fontsize=12)
         plt.ylabel('Dec (deg)', fontsize=12)
-        plt.xticks(fontsize=12)
-        plt.yticks(fontsize=12)
+        plt.xticks(fontsize=11)
+        plt.yticks(fontsize=11)
         
         if include_title:
             plt.title(title)
-        plt.gca().xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x + base_offset:.3f}'))
-        plt.gca().yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y + base_dec_offset:.3f}'))
-        plt.legend()
+        plt.gca().xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x + base_offset:.4f}'))
+        plt.gca().yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y + base_dec_offset:.4f}'))
+        plt.legend(loc='upper right')
+        plt.tight_layout()
         return fig
     
     def read_saved_data(self, file_path):
