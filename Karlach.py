@@ -979,11 +979,10 @@ class PlotManager:
         plt.legend()
         return fig
 
-    def plot_skycoord_sizing(self, ra, dec, obj_name, title, blue_mag, red_mag, include_title=True):
+    def plot_skycoord_sizing(self, ra, dec, obj_name, title, blue_mag, red_mag, global_min_mag, global_max_mag, include_title=True):
         # Calculate the size of each point relative to the average of blue and red magnitudes
-        # Brighter stars should have larger sizes, so we invert the magnitude scale
-        # Normalize sizes: The size calculation here is arbitrary and can be adjusted as needed
         avg_mag = (blue_mag + red_mag) / 2
+        max_size = 150
 
         # This plot can output an offset for the x-axis and/or y-axis leading to more confusing tick labels
         base_ra = min(ra)
@@ -994,32 +993,32 @@ class PlotManager:
 
         fig = plt.figure(figsize=(8, 8))
 
-        # If using the brightest star, exclude it from the average magnitude calculation
         if self.use_brightest_star:
             print("Using brightest star for special marker (sizing plot)")
             brightest_index = np.argmin(avg_mag)
             special_ra, special_dec = ra[brightest_index], dec[brightest_index]
             special_label = f"{obj_name}"
-            special_size = max_size = 150  # Use maximum size for the special marker
+            special_size = max_size  # Use maximum size for the special marker
 
             # Remove the brightest star from the data
             mask = np.ones(len(ra), dtype=bool)
             mask[brightest_index] = False
             ra_filtered = ra[mask]
             dec_filtered = dec[mask]
-            sizes_filtered = sizes = max_size * (1 / (avg_mag[mask] - np.min(avg_mag[mask]) + 1))
             avg_mag_filtered = avg_mag[mask]
         else:
             print("Using Simbad catalog position for special marker (sizing plot)")
             special_ra, special_dec = self.sn_ra, self.sn_dec
             special_label = f"{obj_name} (Simbad)"
-            special_size = max_size = 150  # Use maximum size for Simbad position
+            special_size = max_size  # Use maximum size for Simbad position
 
             # Use all stars for plotting
             ra_filtered = ra
             dec_filtered = dec
-            sizes_filtered = sizes = max_size * (1 / (avg_mag - np.min(avg_mag) + 1))
             avg_mag_filtered = avg_mag
+
+        # Calculate sizes using global min and max magnitudes
+        sizes_filtered = max_size * (1 / (avg_mag_filtered - global_min_mag + 1))
 
         # Plot all stars
         scatter = plt.scatter(ra_filtered, dec_filtered, s=sizes_filtered, alpha=0.6)
@@ -1028,9 +1027,9 @@ class PlotManager:
         # Retrieve the color used by the scatter plot
         data_color = scatter.get_facecolor()[0]
 
-        # Add legend for magnitude sizes
-        legend_mags = np.linspace(np.min(avg_mag_filtered), np.max(avg_mag_filtered), num=4)  # Choose 4 representative magnitudes
-        legend_sizes = max_size * (1 / (legend_mags - np.min(avg_mag_filtered) + 1))
+        # Add legend for magnitude sizes using global min and max magnitudes
+        legend_mags = np.linspace(global_min_mag, global_max_mag, num=4)  # Choose 4 representative magnitudes
+        legend_sizes = max_size * (1 / (legend_mags - global_min_mag + 1))
         for mag, size in zip(legend_mags, legend_sizes):
             plt.scatter([], [], s=size, color=data_color, label=f'Mag: {mag:.1f}', alpha=0.6)
 
@@ -1055,7 +1054,7 @@ class PlotManager:
             print(f"Error reading data from {file_path}: {e}")
             return None
 
-    def plot_data_from_file(self, data, threshold, include_titles=True):
+    def plot_data_from_file(self, data, threshold, global_min_mag, global_max_mag, include_titles=True):
         print("Plotting data...")
 
         if self.pdf:
@@ -1087,7 +1086,7 @@ class PlotManager:
                 red_unc_label = self.red_unc_label
 
                 # Call the plotting function with these arrays and labels
-                self.generate_and_save_plots(pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold, include_titles)
+                self.generate_and_save_plots(pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold, include_titles, global_min_mag, global_max_mag)
                 print(f"Successfully generated the PDF file: {pdf_filename}!")
         else:
             # Extract columns from the data array
@@ -1116,10 +1115,10 @@ class PlotManager:
             red_unc_label = self.red_unc_label
 
             # Call the plotting function with these arrays and labels
-            self.show_plots(pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold)
+            self.show_plots(pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold, global_min_mag, global_max_mag)
 
     # Called with --pdf command. e.g. --phot --pdf [file.pdf]. Saves all figures above to single .pdf
-    def generate_and_save_plots(self, pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold, include_titles):
+    def generate_and_save_plots(self, pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold, include_titles, global_min_mag, global_max_mag):
         #print(f"Debug: Length of data tuple: {len(data)}, Data: {data}")  # Debug statement
         #try:
         #    (x_cut, y_cut, blue_cut, red_cut, blue_unc_cut, red_unc_cut, color_filtered, cmd_label, self.red_label, self.blue_label, red_abs_cut_label, blue_abs_cut_label, red_unc_label, blue_unc_label, ra_filtered, dec_filtered, proximity_threshold, blue_abs_cut, red_abs_cut) = data
@@ -1173,12 +1172,12 @@ class PlotManager:
         plt.close(skycoord_fig)
 
         # Generate and save the Skycoord fig, which adjusts the sizing of the points according to the mag of the star
-        skycoord_size_fig = self.plot_skycoord_sizing(ra_cut, dec_cut, self.obj_name, f"{self.phot_file} {threshold}pc Mag-Sizing", blue_cut, red_cut, include_title=include_titles)
+        skycoord_size_fig = self.plot_skycoord_sizing(ra_cut, dec_cut, self.obj_name, f"{self.phot_file} {threshold}pc Mag-Sizing", blue_cut, red_cut, global_min_mag, global_max_mag, include_title=include_titles)
         pdf_pages.savefig(skycoord_size_fig)
         plt.close(skycoord_size_fig)
 
     # If you don't want to save the .pdf, but want to inspect a plot, simply use --phot
-    def show_plots(self, pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold):
+    def show_plots(self, pdf_pages, x_cut, y_cut, blue_cut, blue_unc_cut, red_cut, red_unc_cut, color_filtered, ra_cut, dec_cut, blue_abs_cut, red_abs_cut, cmd_label, blue_label, red_label, blue_abs_cut_label, red_abs_cut_label, blue_unc_label, red_unc_label, threshold, global_min_mag, global_max_mag):
         # Display the CMD plot
         cmd_fig = self.plot_cmd(color_filtered, red_cut, cmd_label, self.red_label, f"{self.phot_file}: Cut CMD {threshold}pc")
         cmd_fig.show()
@@ -1212,7 +1211,7 @@ class PlotManager:
         skycoord_fig.show()
 
         # Display the SkyCoord sizing plot
-        skycoord_size_fig = self.plot_skycoord_sizing(ra_cut, dec_cut, self.obj_name, f"{self.phot_file} {threshold}pc Mag-Sizing", blue_cut, red_cut)
+        skycoord_size_fig = self.plot_skycoord_sizing(ra_cut, dec_cut, self.obj_name, f"{self.phot_file} {threshold}pc Mag-Sizing", blue_cut, red_cut, global_min_mag, global_max_mag)
         skycoord_size_fig.show()
 
 def main():
@@ -1548,13 +1547,34 @@ def main():
 
         # Execute plotting if --phot is specified
         if args.phot:
+            # Load all datasets and calculate global minimum and maximum magnitudes
+            all_data = []
+            global_min_mag = float('inf')
+            global_max_mag = float('-inf')
             for threshold in plotter.proximity_thresholds:
                 full_file_name_npy = f"{plotter.obj_name}_{threshold}pc_{plotter.blue_label}_{plotter.red_label}_full.npy"
                 data = plotter.read_saved_data(full_file_name_npy)
                 if data is not None:
-                    plotter.plot_data_from_file(data, threshold, not args.no_titles)
-            else:
-                print(f"Failed to load data for threshold {threshold} pc.")
+                    all_data.append((threshold, data))
+                    blue_mag = data[:, 2]
+                    red_mag = data[:, 4]
+                    avg_mag = (blue_mag + red_mag) / 2
+                    
+                    if plotter.use_brightest_star:
+                        # Exclude the brightest star
+                        brightest_index = np.argmin(avg_mag)
+                        avg_mag_filtered = np.delete(avg_mag, brightest_index)
+                        global_min_mag = min(global_min_mag, np.min(avg_mag_filtered))
+                        global_max_mag = max(global_max_mag, np.max(avg_mag_filtered))
+                    else:
+                        global_min_mag = min(global_min_mag, np.min(avg_mag))
+                        global_max_mag = max(global_max_mag, np.max(avg_mag))
+                else:
+                    print(f"Failed to load data for threshold {threshold} pc.")
+
+            # Now plot with the global minimum and maximum magnitudes
+            for threshold, data in all_data:
+                plotter.plot_data_from_file(data, threshold, global_min_mag, global_max_mag, not args.no_titles)
 
 if __name__ == "__main__":
     main()
