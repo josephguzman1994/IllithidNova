@@ -150,15 +150,6 @@ class PARSEC:
             "1.2S": "parsec_CAF09_v1.2S",
             "2.0": "parsec_CAF09_v2.0"
         }
-        self.rotation_options = {
-            "0.00": "0.00",
-            "0.30": "0.30",
-            "0.60": "0.60",
-            "0.80": "0.80",
-            "0.90": "0.90",
-            "0.95": "0.95",
-            "0.99": "0.99"
-        }
 
     async def send_request(self, form_data):
         url = f"{self.base_url}/cgi-bin/cmd_{form_data['cmd_version']}"
@@ -1023,12 +1014,18 @@ async def main():
                 isomodel = 'Parsec'
             elif version_choice == "2":
                 parsec_version = "2.0"
-                print("\nAvailable rotation options for PARSEC v2.0:")
-                for i, omega in enumerate(parsec.rotation_options.keys(), 1):
-                    print(f"{i}. ωi={omega}")
-                rotation_choices = input("Enter the numbers of desired rotation options (comma-separated): ")
-                rotation_values = [list(parsec.rotation_options.keys())[int(choice)-1] for choice in rotation_choices.split(',')]
                 isomodel = 'Parsec2.0'
+                rotation_values = []
+                while True:
+                    try:
+                        rotation_input = input("Enter rotation values between 0 and 0.99 (comma-separated for multiple values): ")
+                        rotation_values = [float(rot) for rot in rotation_input.split(',')]
+                        if all(0 <= rot <= 0.99 for rot in rotation_values):
+                            break
+                        else:
+                            print("Please enter values between 0 and 0.99.")
+                    except ValueError:
+                        print("Invalid input. Please enter numeric values.")
             else:
                 print("Invalid choice. Defaulting to PARSEC v1.2S")
                 parsec_version = "1.2S"
@@ -1124,11 +1121,10 @@ async def main():
                 
                 form_data = form_data.copy()
                 
-                if rotation:
-                    if parsec_version == "2.0":
-                        form_data['track_omegai'] = rotation
-                    else:
-                        form_data['v_div_vcrit'] = parsec.rotation_options[rotation]
+                if parsec_version == "2.0":
+                    form_data['track_omegai'] = f"{rotation:.2f}"
+
+                #print("Form data being sent:", form_data)
 
                 output_filename, instrument_input = await parsec.download_isochrone(form_data)
                 if output_filename and instrument_input:
