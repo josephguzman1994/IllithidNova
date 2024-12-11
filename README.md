@@ -130,13 +130,13 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   </div>
 </div>
 
-`Gale.py` is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.7 service hosted at `stev.oapd.inaf.it`, as well as MIST isochrones hosted at `https://waps.cfa.harvard.edu/MIST/interp_isos.html`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems. It is currently optimized to use MIST, PARSECv1.2s and PARSECv2.0 and COLIBRI models to fetch photometric system data, which it then unpacks into structured `.npz` files for further analysis.
+`Gale.py` is an advanced Python script designed for astronomers and astrophysicists to dynamically generate and download stellar isochrone data from the CMD 3.8 service hosted at `stev.oapd.inaf.it`, as well as MIST isochrones hosted at `https://waps.cfa.harvard.edu/MIST/interp_isos.html`. The script allows users to specify a range of parameters that define the characteristics of the isochrones they are interested in, such as age, metallicity, and photometric systems. It is currently optimized to use MIST, PARSECv1.2s and PARSECv2.0 and COLIBRI models to fetch photometric system data, which it then unpacks into structured `.npz` files for further analysis.
 
 <details>
   <summary>Click to Expand!</summary>
 
   ## Key Features
-  - **Download Isochrone Data**: Downloads data directly from the CMD 3.7 interface.
+  - **Download Isochrone Data**: Downloads data directly from the CMD 3.8 interface.
     - **Dynamic Parameter Input**: Users can input specific parameters such as log age limits, metallicity [M/H] limits, and step sizes directly through the command line interface.
     - **Error Handling**: Provides robust error handling to manage and report issues like connection timeouts or data retrieval errors.
     - **Support for Multiple Photometric System Files**: Users can choose from predefined photometric systems, or add new ones to the `photometric_systems` dictionary, which maps system names to corresponding data file paths.
@@ -181,7 +181,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   2. **Unpacking Existing Data**
   bash ```python3 Gale.py --UnpackIsoSet```
 
-  &emsp; Calling `UnpackIsoSet` will search the current working directory for all potentially relevant files (`.set` or `.cmd`), then automatically pipes unpacked files to an isochrone directory and organizes them by isomodel and photometric system. Currently, my system directory configuration is hardcoded and the base path should be changed to match your system.
+  &emsp; Calling `UnpackIsoSet` will search the current working directory for all potentially relevant files (`.set` or `.cmd`), then automatically pipes unpacked files to an isochrone directory and organizes them by isomodel and photometric system. Currently, my system directory configuration is hardcoded, and the base path should be changed to match your system.
 
   3. **Unpack Existing Data into specified directory**
   bash ```python3 Gale.py --UnpackIsoSet --isodir /path/to/directory```
