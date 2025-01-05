@@ -208,24 +208,25 @@ def main():
     args = parser.parse_args()
 
     manager = HSTManagement()
-    drive_manager = GoogleDriveManager()
 
     if args.halsin:
         if manager.create_directory_and_copy_script():
             manager.execute_script()
             manager.manage_downloads()
 
-    if args.astarion:
+    if args.astarion or args.backup_astarion:
+        drive_manager = GoogleDriveManager()
         stellar_manager = StellarAgesManagement(manager.object_name)
-        if not stellar_manager.create_astarion_subdirectories():
-            print("Failed to create Astarian subdirectories.")
 
-    if args.backup_astarion:
-        stellar_manager = StellarAgesManagement(manager.object_name)
-        if args.upload_to_drive:
-            stellar_manager.backup_astarion(drive_manager)
-        else:
-            stellar_manager.backup_astarion()
+        if args.astarion:
+            if not stellar_manager.create_astarion_subdirectories():
+                print("Failed to create Astarian subdirectories.")
+
+        if args.backup_astarion:
+            if args.upload_to_drive:
+                stellar_manager.backup_astarion(drive_manager)
+            else:
+                stellar_manager.backup_astarion()
 
 if __name__ == "__main__":
     main()
