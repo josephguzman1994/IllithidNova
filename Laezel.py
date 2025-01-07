@@ -3,6 +3,7 @@ import sys
 import shutil
 import pexpect
 import time
+import socket
 import argparse
 import tarfile
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -10,7 +11,18 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 class GoogleDriveManager:
-    def __init__(self, creds_filename='/home/joe/Research/client_secret_998943080644-p9eg7qlqadif8124vc69i0vh7pmn1ega.apps.googleusercontent.com.json'):
+    def __init__(self):
+        # Get the hostname of the current machine
+        hostname = socket.gethostname()
+
+        # Define paths for each machine
+        if hostname == 'Minthara':
+            creds_filename = '/home/joe/Research/client_secret_998943080644-kdo9jlggo7i8e0bv2sqen4r1734r6ilg.apps.googleusercontent.com.json'
+        elif hostname == 'Karlach':
+            creds_filename = '/home/joe/Research/client_secret_998943080644-p9eg7qlqadif8124vc69i0vh7pmn1ega.apps.googleusercontent.com.json'
+        else:
+            raise ValueError("Unknown host. Please configure the credentials path for this machine.")
+        
         self.creds_filename = creds_filename
         self.service = self.authenticate_google_drive()
 
