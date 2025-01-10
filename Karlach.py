@@ -319,8 +319,8 @@ class TerminalCommandExecutor:
         chip_files = [f for f in chip_files if not re.search(r'\.(sky|res|psf)\.fits$', f)]
         
         # Identify all drz/drc files with a more inclusive regex
-        drz_drc_files = [f for f in chip_files if re.search(r'\_dr[zc]\.fits$', f)]
-        other_chip_files = [f for f in chip_files if not re.search(r'\_dr[zc]\.fits$', f)]
+        drz_drc_files = [f for f in chip_files if re.search(r'\_dr[zc]\.chip\d\.fits$', f)]
+        other_chip_files = [f for f in chip_files if not re.search(r'\_dr[zc]\.chip\d\.fits$', f)]
 
         # Select the deepest image from drz/drc files
         selected_drz_drc_file = self.select_deepest_image(drz_drc_files, working_directory)
