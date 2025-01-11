@@ -73,11 +73,11 @@ class RawSkyPlotter:
         style_axes(ax2, 'HST ACS HRC Image (RA and Dec)')
         fig.colorbar(im2, ax=ax2, label='Flux', pad=0.01)
 
-        # Add SN 2004dj position
+        # Add SN2023ixf position
         sn_coord = SkyCoord('07h37m17.0432126424s +65d35m57.826001220s', frame='icrs')
         ax2.scatter(sn_coord.ra.deg, sn_coord.dec.deg, transform=ax2.get_transform('world'),
-                    s=100, color='red', marker='x', label='SN 2004dj')
-        ax2.annotate('SN 2004dj', xy=(sn_coord.ra.deg, sn_coord.dec.deg), xytext=(10, 10),
+                    s=100, color='red', marker='x', label='SN2023ixf')
+        ax2.annotate('SN2023ixf', xy=(sn_coord.ra.deg, sn_coord.dec.deg), xytext=(10, 10),
                      textcoords='offset points', color='black', fontsize=12,
                      xycoords=ax2.get_transform('world'),
                      arrowprops=dict(arrowstyle="->", color='black'))
@@ -660,16 +660,27 @@ class PlotManager:
             print(f"Error: The reference file {self.ref_file} could not be opened.")
             return None
 
-        # Query simbad to automatically define SN RA and SN Dec. Allows Manual input if not found
-        result_table = Simbad.query_object(self.obj_name)
-        if result_table is not None:
-            ra_str, dec_str = result_table['RA'].data[0], result_table['DEC'].data[0]
-            sky_coord = SkyCoord(ra=ra_str, dec=dec_str, unit=("hourangle", "deg"), frame='icrs')
-            self.sn_ra, self.sn_dec = sky_coord.ra.deg, sky_coord.dec.deg
-        else:
-            print(f"Warning: Object {self.obj_name} not found in SIMBAD. Defaulting to manual input.")
+        # Prompt user for choice between SIMBAD query or manual input
+        choice = input("Enter index 1 if you'd like SIMBAD to automatically fetch the RA and DEC, Enter index 2 if you'd like to manually input the RA and DEC: ")
+
+        if choice == '1':
+            # Query SIMBAD to automatically define SN RA and SN Dec
+            result_table = Simbad.query_object(self.obj_name)
+            if result_table is not None:
+                ra_str, dec_str = result_table['RA'].data[0], result_table['DEC'].data[0]
+                sky_coord = SkyCoord(ra=ra_str, dec=dec_str, unit=("hourangle", "deg"), frame='icrs')
+                self.sn_ra, self.sn_dec = sky_coord.ra.deg, sky_coord.dec.deg
+            else:
+                print(f"Warning: Object {self.obj_name} not found in SIMBAD. Defaulting to manual input.")
+                self.sn_ra = float(input("Enter RA (deg): "))
+                self.sn_dec = float(input("Enter DEC (deg): "))
+        elif choice == '2':
+            # Manual input for RA and DEC
             self.sn_ra = float(input("Enter RA (deg): "))
             self.sn_dec = float(input("Enter DEC (deg): "))
+        else:
+            print("Invalid choice. Please enter 1 or 2.")
+            return None
 
         # Columns defined in 2004dj_kochanek.phot.columns (indexing from 1): Currently hardcoded, verify this is generally true.
         # Held true for ACS_HRC data, ACS_WFC data, and WFC3 data.
@@ -805,14 +816,14 @@ class PlotManager:
         plt.scatter(color, magnitude, alpha=0.7)
 
         # Automatically set axes limits
-        #x_lower, x_upper = self.set_axes_limits(color)
-        #y_lower, y_upper = self.set_axes_limits(magnitude)
-        #plt.xlim(x_lower, x_upper)
-        #plt.ylim(y_upper, y_lower)  # Invert y-axis for magnitudes
+        x_lower, x_upper = self.set_axes_limits(color)
+        y_lower, y_upper = self.set_axes_limits(magnitude)
+        plt.xlim(x_lower, x_upper)
+        plt.ylim(y_upper, y_lower)  # Invert y-axis for magnitudes
 
-        plt.xlim(-1, 4) #limits currently hardcoded by eye
-        plt.ylim(19.5, 25.5)
-        plt.gca().invert_yaxis()
+        #plt.xlim(-1, 4) #limits currently hardcoded by eye
+        #plt.ylim(19.5, 25.5)
+        #plt.gca().invert_yaxis()
         plt.xlabel(cmd_label, fontsize=12, ha='center')
         plt.ylabel(mag_label, fontsize=12)
         
@@ -931,10 +942,10 @@ class PlotManager:
     def plot_skycoord(self, ra, dec, obj_name, title, include_title=True):
         # This plot can output an offset for the x-axis and/or y-axis leading to more confusing tick labels
         base_ra = min(ra)
-        base_offset = 114.32 - base_ra #Currently hardcoding offset by eye
+        base_offset = base_ra #Currently hardcoding offset by eye
 
         base_dec = min(dec)
-        base_dec_offset = 65.6 - base_dec #Currently hardcoding offset for clean tick labels
+        base_dec_offset = base_dec #Currently hardcoding offset for clean tick labels
 
         brightest_index = np.argmin(self.blue_cut)
         brightest_ra, brightest_dec = ra[brightest_index], dec[brightest_index]
@@ -986,10 +997,10 @@ class PlotManager:
 
         # This plot can output an offset for the x-axis and/or y-axis leading to more confusing tick labels
         base_ra = min(ra)
-        base_offset = 114.32 - base_ra  # Currently hardcoding offset by eye
+        base_offset = base_ra  # Currently hardcoding offset by eye
 
         base_dec = min(dec)
-        base_dec_offset = 65.6 - base_dec  # Currently hardcoding offset for clean tick labels
+        base_dec_offset = base_dec  # Currently hardcoding offset for clean tick labels
 
         fig = plt.figure(figsize=(8, 8))
 
