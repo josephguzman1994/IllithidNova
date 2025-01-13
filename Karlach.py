@@ -1225,6 +1225,233 @@ class PlotManager:
         skycoord_size_fig = self.plot_skycoord_sizing(ra_cut, dec_cut, self.obj_name, f"{self.phot_file} {threshold}pc Mag-Sizing", blue_cut, red_cut, global_min_mag, global_max_mag)
         skycoord_size_fig.show()
 
+class StarDistanceHistogram:
+    def __init__(self, phot_file, ref_file, obj_name, distance_pc):
+        self.phot_file = phot_file
+        self.ref_file = ref_file
+        self.obj_name = obj_name
+        self.distance_pc = distance_pc
+        
+    @classmethod
+    def from_config_or_input(cls):
+        """Initialize using config.ini or manual input"""
+        config = configparser.ConfigParser()
+        
+        if os.path.exists('config.ini'):
+            config.read('config.ini')
+            try:
+                phot_file = config['DOLPHOT_CONFIG']['phot_file']
+                ref_file = config['DOLPHOT_CONFIG']['ref_file']
+                obj_name = config['DOLPHOT_CONFIG']['obj_name']
+                distance_pc = float(config['DOLPHOT_CONFIG']['distance'])
+                
+                print(f"\nUsing configuration from config.ini:")
+                print(f"Photometry file: {phot_file}")
+                print(f"Reference file: {ref_file}")
+                print(f"Object name: {obj_name}")
+                print(f"Distance: {distance_pc} pc\n")
+                
+                return cls(phot_file, ref_file, obj_name, distance_pc)
+            
+            except (KeyError, ValueError) as e:
+                print(f"Error reading config.ini: {e}")
+                print("Falling back to manual input...")
+        else:
+            print("No config.ini found. Using manual input...")
+        
+        # Manual input fallback
+        phot_file = input("Enter path to photometry file: ")
+        ref_file = input("Enter path to reference FITS file: ")
+        obj_name = input("Enter object name: ")
+        distance_pc = float(input("Enter distance to object in parsecs: "))
+        
+        return cls(phot_file, ref_file, obj_name, distance_pc)
+
+    def load_data(self):
+        """Load photometry data and get pixel coordinates with quality metrics"""
+        try:
+            # Load all necessary columns (x, y, crowding, magnitudes, uncertainties, S/N, sharpness)
+            data = np.genfromtxt(self.phot_file, usecols=(2, 3, 9, 15, 17, 19, 20, 28, 30, 32, 33))
+            
+            # Extract data following the column mapping
+            self.x = data[:, 0]
+            self.y = data[:, 1]
+            self.crowd = data[:, 2]
+            self.blue_sn = data[:, 5]
+            self.blue_sharp = data[:, 6]
+            self.red_sn = data[:, 9]
+            self.red_sharp = data[:, 10]
+            
+            return True
+        except Exception as e:
+            print(f"Error loading photometry data: {e}")
+            return False
+        
+    def apply_quality_filter(self):
+        """Apply quality cuts based on Murphy 2018"""
+        red_sn_above4 = self.red_sn >= 4.0
+        blue_sn_above4 = self.blue_sn >= 4.0
+        sharp_cond = (self.blue_sharp**2 + self.red_sharp**2) <= 0.15
+        crowd_cond = self.crowd <= 1.3
+        
+        quality_mask = red_sn_above4 & blue_sn_above4 & sharp_cond & crowd_cond
+        
+        # Apply mask to coordinates
+        self.x_filtered = self.x[quality_mask]
+        self.y_filtered = self.y[quality_mask]
+        
+        return quality_mask
+
+    def get_wcs(self):
+        """Get WCS information from reference file"""
+        try:
+            with fits.open(self.ref_file) as ref:
+                # Check if this is ACS_HRC data
+                if 'SCI' in ref:
+                    ref_header = ref['SCI', 1].header
+                    # Remove distortion keywords that might cause issues
+                    for key in ['CPDIS1', 'CPDIS2', 'DP1', 'DP2', 'NPOLEXT']:
+                        ref_header.pop(key, None)
+                else:
+                    ref_header = ref[0].header
+                return WCS(ref_header)
+        except Exception as e:
+            print(f"Error getting WCS information: {e}")
+            return None
+
+    def get_object_coordinates(self):
+        """Get object coordinates from SIMBAD or manual input"""
+        while True:
+            choice = input("Enter 1 for SIMBAD query or 2 for manual RA/Dec input: ")
+            
+            if choice == '1':
+                result_table = Simbad.query_object(self.obj_name)
+                if result_table is not None:
+                    ra_str, dec_str = result_table['RA'][0], result_table['DEC'][0]
+                    coords = SkyCoord(ra_str, dec_str, unit=(u.hourangle, u.deg))
+                    return coords.ra.deg, coords.dec.deg
+                else:
+                    print(f"Object {self.obj_name} not found in SIMBAD.")
+                    continue
+            
+            elif choice == '2':
+                try:
+                    ra = float(input("Enter RA in degrees: "))
+                    dec = float(input("Enter Dec in degrees: "))
+                    return ra, dec
+                except ValueError:
+                    print("Invalid input. Please enter numerical values.")
+                    continue
+            
+            else:
+                print("Invalid choice. Please enter 1 or 2.")
+
+    def calculate_distances(self, wcs, obj_ra, obj_dec):
+        """Calculate distances from object to all stars"""
+        # Convert pixel coordinates to RA/Dec
+        ra_all, dec_all = wcs.all_pix2world(self.x, self.y, 1)
+        
+        # Create SkyCoord objects
+        stars = SkyCoord(ra=ra_all, dec=dec_all, unit=u.deg)
+        obj = SkyCoord(ra=obj_ra, dec=obj_dec, unit=u.deg)
+        
+        # Calculate angular separations and convert to parsecs
+        separations = obj.separation(stars)
+        distances_pc = separations.radian * self.distance_pc
+        
+        return distances_pc
+
+    def plot_histogram(self, distances, distances_filtered=None, bins=50, max_distance=None):
+        """Create and save histogram with enhanced features"""
+        if max_distance is not None:
+            distances = distances[distances <= max_distance]
+            if distances_filtered is not None:
+                distances_filtered = distances_filtered[distances_filtered <= max_distance]
+
+        # Calculate number of stars vs distance for both datasets
+        sorted_distances = np.sort(distances)
+        cumulative_stars = np.arange(1, len(sorted_distances) + 1)
+        
+        if distances_filtered is not None:
+            sorted_distances_filtered = np.sort(distances_filtered)
+            cumulative_stars_filtered = np.arange(1, len(sorted_distances_filtered) + 1)
+        
+        # Find distance at which we recover 1000 stars
+        distance_1000 = None
+        distance_1000_filtered = None
+        if len(cumulative_stars) >= 1000:
+            idx_1000 = np.searchsorted(cumulative_stars, 1000)
+            distance_1000 = sorted_distances[idx_1000]
+            print(f"\nDistance at which 1000 stars are recovered (unfiltered): {distance_1000:.1f} pc")
+        
+        if distances_filtered is not None and len(cumulative_stars_filtered) >= 1000:
+            idx_1000_filtered = np.searchsorted(cumulative_stars_filtered, 1000)
+            distance_1000_filtered = sorted_distances_filtered[idx_1000_filtered]
+            print(f"Distance at which 1000 stars are recovered (filtered): {distance_1000_filtered:.1f} pc")
+        
+        # Create figure with two subplots
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12), height_ratios=[2, 1])
+        
+        # Plot histograms
+        ax1.hist(distances, bins=bins, alpha=0.5, label='All Stars', edgecolor='black')
+        if distances_filtered is not None:
+            ax1.hist(distances_filtered, bins=bins, alpha=0.5, label='Quality Filtered', edgecolor='black')
+        ax1.axvline(x=100, color='r', linestyle='--', label='100 pc')
+        ax1.set_xlabel('Distance from Object (pc)')
+        ax1.set_ylabel('Number of Stars')
+        ax1.set_title(f'Star Distribution Around {self.obj_name}')
+        
+        # Set major ticks every 500 pc
+        max_dist = max_distance if max_distance else distances.max()
+        major_ticks = np.arange(0, max_dist + 500, 500)
+        ax1.set_xticks(major_ticks)
+        
+        # Add minor ticks every 100 pc
+        minor_ticks = np.arange(0, max_dist + 100, 100)
+        ax1.set_xticks(minor_ticks, minor=True)
+        
+        ax1.grid(True, which='major', alpha=0.5)
+        ax1.grid(True, which='minor', alpha=0.2)
+        ax1.legend()
+
+        # Plot cumulative distributions
+        ax2.plot(sorted_distances, cumulative_stars, label='All Stars')
+        if distances_filtered is not None:
+            ax2.plot(sorted_distances_filtered, cumulative_stars_filtered, label='Quality Filtered')
+        ax2.axvline(x=100, color='r', linestyle='--', label='100 pc')
+        
+        # Add 1000-star threshold lines and labels
+        if len(cumulative_stars) >= 1000:
+            # Get the maximum y-value for scaling text position
+            y_max = max(cumulative_stars)
+            text_height = 0.8 * y_max  # Position text at 80% of max height
+            
+            ax2.axhline(y=1000, color='g', linestyle='--', label='1000 stars')
+            ax2.axvline(x=distance_1000, color='g', linestyle='--')
+            ax2.text(distance_1000, text_height, f'{distance_1000:.1f} pc\n(unfiltered)', 
+                    rotation=90, verticalalignment='bottom')
+        
+        if distances_filtered is not None and len(cumulative_stars_filtered) >= 1000:
+            ax2.axvline(x=distance_1000_filtered, color='g', linestyle=':')
+            ax2.text(distance_1000_filtered, text_height, f'{distance_1000_filtered:.1f} pc\n(filtered)', 
+                    rotation=90, verticalalignment='bottom')
+        
+        ax2.set_xlabel('Distance from Object (pc)')
+        ax2.set_ylabel('Cumulative Number of Stars')
+        ax2.set_xticks(major_ticks)
+        ax2.set_xticks(minor_ticks, minor=True)
+        ax2.grid(True, which='major', alpha=0.5)
+        ax2.grid(True, which='minor', alpha=0.2)
+        ax2.legend()
+
+        plt.tight_layout()
+        
+        # Save plot
+        output_file = f'{self.obj_name}_distance_histogram.png'
+        plt.savefig(output_file, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Histogram saved as {output_file}")
+
 def main():
     parser = argparse.ArgumentParser(description="Dolphot Automation Tool")
     parser.add_argument('--rawskyplot', type=str, help='Plot raw sky image from FITS file')
@@ -1237,6 +1464,7 @@ def main():
     parser.add_argument('--calcsky_values', action='store_true', help='Provide custom calcsky values')
     parser.add_argument('--headerkeys', action='store_true', help='If you want to generate headerkey info without performing whole dolphot process')
     parser.add_argument('--phot', action='store_true', help='Make several plots from the output dolphot photometry')
+    parser.add_argument('--disthist', action='store_true', help='Generate distance histogram plots')
     parser.add_argument('--save_data', action='store_true', help='Save quality and distance filtered datasets to .txt and .npy files')
     parser.add_argument('--no_titles', action='store_true', help='Generate plots without titles for publication')
     parser.add_argument('--pdf', action='store_true', help='Output PDF files to save the plots')
@@ -1586,6 +1814,36 @@ def main():
             # Now plot with the global minimum and maximum magnitudes
             for threshold, data in all_data:
                 plotter.plot_data_from_file(data, threshold, global_min_mag, global_max_mag, not args.no_titles)
+
+    if args.disthist:
+        # Create histogram object using config or manual input
+        histogram = StarDistanceHistogram.from_config_or_input()
+        
+        # Load data
+        if not histogram.load_data():
+            return
+        
+        # Get WCS
+        wcs = histogram.get_wcs()
+        if wcs is None:
+            return
+        
+        # Get object coordinates (keeps original interactive prompt)
+        obj_ra, obj_dec = histogram.get_object_coordinates()
+        
+        # Calculate distances for all stars
+        distances = histogram.calculate_distances(wcs, obj_ra, obj_dec)
+        
+        # Apply quality filter and calculate distances for filtered stars
+        quality_mask = histogram.apply_quality_filter()
+        distances_filtered = distances[quality_mask]
+        
+        # Interactive prompt for max_distance
+        max_distance = input("Enter maximum distance to plot in parsecs (press Enter for no limit): ")
+        max_distance = float(max_distance) if max_distance.strip() else None
+        
+        # Create histogram with both datasets
+        histogram.plot_histogram(distances, distances_filtered, max_distance=max_distance)
 
 if __name__ == "__main__":
     main()
