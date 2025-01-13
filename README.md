@@ -7,7 +7,7 @@
     <img src="https://github.com/josephguzman1994/IllithidNova/assets/98617911/ece65425-b8b6-420c-9d90-41e9775f14fa" alt="IllithidNova" width="300">
   </div>
 </div>
-IllithidNova is a place with multiple python tools for astronomers and astrophysicists. At the moment, it serves as the workbench for all the tools I have built to accomplish my specific research tasks, but perhaps you may find something useful for your projects. This repo currently contains Karlach.py which automates DOLPHOT processing, Gale.py which automates queries to MIST and CMD 3.7, Halsin.py which automates download queries to the MAST portal, Astarion.py which automates processes for the code StellarAges, and Lae'zel.py which is meant to link all the scripts together automatically.
+IllithidNova is a place with multiple python tools for astronomers and astrophysicists. At the moment, it serves as the workbench for all the tools I have built to accomplish my specific research tasks, but perhaps you may find something useful for your projects. This repo currently contains Karlach.py which automates DOLPHOT processing, Gale.py which automates queries to MIST and CMD 3.8, Halsin.py which automates download queries to the MAST portal, Astarion.py which automates processes for the code StellarAges, and Lae'zel.py which is meant to link all the scripts together automatically.
 
 ## Contents
 
@@ -57,6 +57,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   - `--save_data`: Saves quality and distance filtered data sets to file.
   - `--pdf`: Specifies the plot outputs to PDF file, rather than display.
   - `--use_brightest_star`: Instead of querying the SIMBAD catalogue for the SN location marker, use the brightest star instead.
+  - `--disthist`: Generate histograms and CDFs of star number versus distance to object.
   
   ## Configuration
   
@@ -112,6 +113,8 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   ```python Karlach.py --param```
   #### Save dolphot photometry data with quality and distance masks, and plot the freshly made data sets to .pdf
   ```python Karlach.py --save_data --phot --pdf```
+  #### Generate histograms of star number versus distance to object
+  ```python Karlach.py --disthist```
   #### Plot the already saved datasets for scientific publication, also use the brightest star instead of SIMBAD coordinates
   ``` python3 Karlach.py --phot --no_titles --use_brightest_star --pdf```
   
@@ -120,7 +123,7 @@ IllithidNova is a place with multiple python tools for astronomers and astrophys
   - In case you are unaware, executing some of the dolphot commands assumes you are in the dolphot2.0 directory. Therefore, you may want to edit your .bashrc file (or equivalent) to execute these commands elsewhere.
   - At the moment, calcsky defaults to suggested values for each HST instrument (e.g. ACS_HRC defaults to 15, 35, -128, 2.25, 2.00, WFPC2 defaults to 10, 25, -50, 2.25, 2.00, etc.), JWST instruments have not been inspected or explicitly set. If you know you might like to use custom values, or would like to inspect the values used before executing, additionally activate ```--calcsky_values``` when executing ```--dolphot``` in the command line.
   - Testing of Karlach.py ```--dolphot``` has thus far been completed with some ACS and WFC3 photometric systems. As a result, bugs may persist in other systems which will likely be worked out sooner, rather than later.
-  - Currently ```--save_data``` assumes a default distance from the SN (or object of interest) of 50, 100, and 150 pc. Therefore ```--save_data``` generates 3 different sets of data simultaneously as the default. If you would like to use a different set of distances for the distance mask, please define in your config.ini file, 'proximity_threshold_pc = ' followed by your comma separated values of interest.
+  - Currently ```--save_data``` assumes a default distance from the SN (or object of interest) of 50, 100, and 150 pc. Therefore ```--save_data``` generates 3 different sets of data simultaneously as the default. If you would like to use a different set of distances for the distance mask, please define in your config.ini file, 'proximity_threshold_pc = ' followed by your comma separated values of interest. For those interested, `distance` from object is calculated using the small angle formula. Specifically, it takes the pixel position of all the identified stars, uses wcs information stored in the header of the reference file, determines the angular separation between the identified star(s) and the object of interest, then using the small angle formula given the distance to the object, determines the distance from the object to the stars.
 </details>
 
 <div style="display: flex; align-items: center;">
