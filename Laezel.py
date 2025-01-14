@@ -96,13 +96,13 @@ class HSTManagement:
                     "Download completed successfully",
                     pexpect.TIMEOUT,
                     pexpect.EOF,
-                ], timeout=1200)
+                ], timeout=2400)
 
                 if index == 0:
                     indices = input("Enter the indices of products to download (comma-separated): ")
                     print(f"Sending indices: {indices}")
                     child.sendline(indices)
-                    child.expect("Starting download of selected products.", timeout=1200)
+                    child.expect("Starting download of selected products.", timeout=2400)
                 elif index == 1:
                     print("Download completed successfully")
                     break
