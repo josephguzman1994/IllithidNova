@@ -34,63 +34,105 @@ class RawSkyPlotter:
         # Set up the plot style
         plt.style.use(astropy_mpl_style)
 
-        # Open the FITS file
-        with fits.open(self.fits_file) as hdul:
-            hdu = hdul[1]
-            image_data = hdu.data
-            wcs = WCS(hdu.header)
+        try:
+            # Open the FITS file and try different extensions
+            with fits.open(self.fits_file) as hdul:
+                # Try to find the science data extension
+                sci_ext = None
+                for i, hdu in enumerate(hdul):
+                    if 'SCIEXT' in hdu.header:
+                        sci_ext = hdu.header['SCIEXT']
+                        break
+                    elif hdu.header.get('EXTNAME') in ['SCI', 'IMAGE']:
+                        sci_ext = i
+                        break
+                
+                if sci_ext is None:
+                    # If no science extension found, use primary or first extension with data
+                    for i, hdu in enumerate(hdul):
+                        if hdu.data is not None:
+                            sci_ext = i
+                            break
+                
+                if sci_ext is None:
+                    raise ValueError("No valid data extension found in FITS file")
 
-        # Set up scaling
-        zscale = ZScaleInterval()
-        norm = ImageNormalize(image_data, interval=zscale, stretch=AsinhStretch())
+                hdu = hdul[sci_ext]
+                image_data = hdu.data
+                wcs = WCS(hdu.header)
 
-        # Create the plot with two subplots
-        fig = plt.figure(figsize=(24, 10))
-        fig.patch.set_facecolor('black')
+            # Set up scaling
+            zscale = ZScaleInterval()
+            norm = ImageNormalize(image_data, interval=zscale, stretch=AsinhStretch())
 
-        # Function to style axes
-        def style_axes(ax, title):
-            ax.set_facecolor('black')
-            ax.set_title(title, color='white', fontsize=16)
-            ax.tick_params(colors='white')
-            ax.xaxis.label.set_color('white')
-            ax.yaxis.label.set_color('white')
+            # Create the plot with two subplots
+            fig = plt.figure(figsize=(24, 10))
+            fig.patch.set_facecolor('black')
 
-        # Plot 1: Pixel coordinates
-        ax1 = fig.add_subplot(121)
-        im1 = ax1.imshow(image_data, cmap='viridis', origin='lower', norm=norm)
-        style_axes(ax1, 'HST ACS HRC Image (Pixel Coordinates)')
-        ax1.set_xlabel('Pixels', color='white', fontsize=12)
-        ax1.set_ylabel('Pixels', color='white', fontsize=12)
-        fig.colorbar(im1, ax=ax1, label='Flux', pad=0.01)
+            # Function to style axes
+            def style_axes(ax, title):
+                ax.set_facecolor('black')
+                ax.set_title(title, color='white', fontsize=16)
+                ax.tick_params(colors='white')
+                ax.xaxis.label.set_color('white')
+                ax.yaxis.label.set_color('white')
 
-        # Plot 2: RA and Dec coordinates
-        ax2 = fig.add_subplot(122, projection=wcs)
-        im2 = ax2.imshow(image_data, cmap='viridis', origin='lower', norm=norm)
-        ax2.grid(color='white', alpha=0.5, linestyle='solid')
-        ax2.set_xlabel('RA', color='white', fontsize=12)
-        ax2.set_ylabel('Dec', color='white', fontsize=12)
-        style_axes(ax2, 'HST ACS HRC Image (RA and Dec)')
-        fig.colorbar(im2, ax=ax2, label='Flux', pad=0.01)
+            # Plot 1: Pixel coordinates
+            ax1 = fig.add_subplot(121)
+            im1 = ax1.imshow(image_data, cmap='viridis', origin='lower', norm=norm)
+            style_axes(ax1, 'HST Image (Pixel Coordinates)')
+            ax1.set_xlabel('Pixels', color='white', fontsize=12)
+            ax1.set_ylabel('Pixels', color='white', fontsize=12)
+            fig.colorbar(im1, ax=ax1, label='Flux', pad=0.01)
 
-        # Add SN2023ixf position
-        sn_coord = SkyCoord('07h37m17.0432126424s +65d35m57.826001220s', frame='icrs')
-        ax2.scatter(sn_coord.ra.deg, sn_coord.dec.deg, transform=ax2.get_transform('world'),
-                    s=100, color='red', marker='x', label='SN2023ixf')
-        ax2.annotate('SN2023ixf', xy=(sn_coord.ra.deg, sn_coord.dec.deg), xytext=(10, 10),
-                     textcoords='offset points', color='black', fontsize=12,
-                     xycoords=ax2.get_transform('world'),
-                     arrowprops=dict(arrowstyle="->", color='black'))
+            # Plot 2: RA and Dec coordinates
+            try:
+                ax2 = fig.add_subplot(122, projection=wcs)
+                im2 = ax2.imshow(image_data, cmap='viridis', origin='lower', norm=norm)
+                ax2.grid(color='white', alpha=0.5, linestyle='solid')
+                ax2.set_xlabel('RA', color='white', fontsize=12)
+                ax2.set_ylabel('Dec', color='white', fontsize=12)
+                style_axes(ax2, 'HST Image (RA and Dec)')
+                fig.colorbar(im2, ax=ax2, label='Flux', pad=0.01)
 
-        ax2.legend(loc='upper left', fontsize=12, facecolor='black', edgecolor='white', labelcolor='white')
+                # Try to add SN position if coordinates are valid
+                try:
+                    sn_coord = SkyCoord('11h18m22.087s -32d50m15.27s', frame='icrs')
+                    ax2.scatter(sn_coord.ra.deg, sn_coord.dec.deg, 
+                              transform=ax2.get_transform('world'),
+                              s=100, color='red', marker='x', label='SN2024ggi (TNS)')
+                    
+                    # Add small offset to RA
+                    ax2.text(sn_coord.ra.deg + 0.00001, sn_coord.dec.deg, 'SN2024ggi',
+                            color='white', fontsize=10,
+                            transform=ax2.get_transform('world'))
+                    
+                    ax2.legend(loc='upper left', fontsize=12, facecolor='black', 
+                                edgecolor='white', labelcolor='white')
+                except Exception as e:
+                    print(f"Warning: Could not add SN position: {e}")
 
-        # Adjust layout and save
-        plt.tight_layout()
-        output_file = 'hst_night_sky_image_comparison_with_sn.png'
-        plt.savefig(output_file, dpi=300, bbox_inches='tight', facecolor='black', edgecolor='none')
-        plt.close()
+            except Exception as e:
+                print(f"Warning: Could not create WCS plot: {e}")
+                # Create a regular subplot instead
+                ax2 = fig.add_subplot(122)
+                im2 = ax2.imshow(image_data, cmap='viridis', origin='lower', norm=norm)
+                style_axes(ax2, 'HST Image (No WCS Available)')
+                ax2.set_xlabel('Pixels', color='white', fontsize=12)
+                ax2.set_ylabel('Pixels', color='white', fontsize=12)
+                fig.colorbar(im2, ax=ax2, label='Flux', pad=0.01)
 
-        print(f"Image saved as '{output_file}'")
+            # Save the plot
+            output_file = 'hst_image_comparison.png'
+            plt.savefig(output_file, dpi=300, bbox_inches='tight', 
+                       facecolor='black', edgecolor='none')
+            plt.close()
+
+            print(f"Image saved as '{output_file}'")
+
+        except Exception as e:
+            print(f"Error processing FITS file: {e}")
+            raise
 
 # Coding up the automation of the dolphot processing: Written by Joseph Guzman @josephguzman1994@gmail.com
 class TerminalCommandExecutor:
@@ -1657,18 +1699,25 @@ def main():
         config = configparser.ConfigParser()
         config.read('config.ini')
         working_directory = os.getcwd()
+        
+        # Get both obj_name and system_name from config
         obj_name = config['DOLPHOT_CONFIG'].get('obj_name')
+        system_name = config['DOLPHOT_CONFIG'].get('system_name')  # Add this line
 
         if not obj_name:
             print("Object name not found in config.ini. Please ensure it's correctly defined under [DOLPHOT_CONFIG].")
             exit(1)  # Exit if obj_name is not defined
+            
+        if not system_name:
+            print("System name not found in config.ini. Please ensure it's correctly defined under [DOLPHOT_CONFIG].")
+            exit(1)  # Exit if system_name is not defined
 
         # If you run --dolphot_only, make sure your parameter file name matches this syntax
         param_file = f"{obj_name}_{system_name}_phot.param"
 
         # Check if the parameter file exists
         if os.path.isfile(param_file):
-            executor.execute_dolphot(obj_name, param_file, working_directory)
+            executor.execute_dolphot(obj_name, param_file, working_directory, config)  # Pass config as well
         else:
             print(f"Parameter file '{param_file}' does not exist. Please ensure the file is in the current directory and named correctly.")
             exit(1)  # Exit if the parameter file does not exist
