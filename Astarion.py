@@ -8,23 +8,108 @@ import time
 
 class Param_Generator:
     def __init__(self, perfectsampleav=False, genlikeliavtildes=None):
+        self.default_ages = '6.50, 6.60, 6.70, 6.80, 6.90, 7.00, 7.10, 7.20, 7.30, 7.40, 7.50, 7.60, 7.80, 8.00, 8.20, 8.40, 8.60, 8.80, 9.00, 9.20, 9.40, 9.60, 9.80, 10.00'
+        self.default_zs = '-0.40, -0.20, 0.00, 0.20'
+        self.base_iso_path = '/home/joe/Research/Isochrones'
         self.params = {
-            'isodir': '/home/joe/Research/Isochrones_Parsec/',
+            'isodir': None,
             'isomodel': 'Parsec',
             'usegaiaplx': False,
-            'genlikeliages': '6.50, 6.60, 6.70, 6.80, 6.90, 7.00, 7.10, 7.20, 7.30, 7.40, 7.50, 7.60, 7.80, 8.00, 8.20, 8.40, 8.60, 8.80, 9.00, 9.20, 9.40, 9.60, 9.80, 10.00',
-            'genlikelizs': '-0.40, -0.20, 0.00, 0.20',
+            'genlikeliages': None,
+            'genlikelizs': None,
             'genlikelimmin': 4.0,
             'genlikeliavtildes': genlikeliavtildes if genlikeliavtildes is not None else '0.0',
             'unctype': 'sigma',
             'perfectsampleav': perfectsampleav
         }
-        self.instrument_options = ['HST/ACS HRC', 'HST/ACS WFC', 'HST/WFC3 wide filters']
+        self.instrument_options = ['ACS_HRC', 'ACS_WFC', 'WFC3_wide', 'WFPC2', 'UBVRI-Gaia']
+        self._setup_isodir()
 
-    def filter_ages(self, max_age):
-        all_ages = list(map(float, self.params['genlikeliages'].split(', ')))
-        filtered_ages = [age for age in all_ages if age <= max_age]
-        return ', '.join(f"{age:.2f}" for age in filtered_ages)  # Format ages with two decimal places
+    def _get_subdirectories(self, path):
+        """Get all subdirectories in the given path."""
+        try:
+            return [d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))]
+        except OSError as e:
+            print(f"Error accessing directory {path}: {e}")
+            return []
+        
+    def _get_user_directory_choice(self, directories, current_path):
+        """Present directory choices to user and get their selection."""
+        while True:
+            print(f"\nCurrent path: {current_path}")
+            print("\nAvailable directories:")
+            for idx, directory in enumerate(directories, 1):
+                print(f"{idx}. {directory}")
+            
+            try:
+                choice = input("\nEnter the number of your choice: ")
+                idx = int(choice) - 1
+                if 0 <= idx < len(directories):
+                    return directories[idx]
+                else:
+                    print("Invalid selection. Please try again.")
+            except ValueError:
+                print("Please enter a valid number.")
+
+    def _setup_isodir(self):
+        """Setup the isochrone directory through user interaction."""
+        current_path = self.base_iso_path
+        
+        # First level selection
+        print("\n=== Select Isochrone Model ===")
+        first_level_dirs = self._get_subdirectories(current_path)
+        if not first_level_dirs:
+            print(f"Error: No subdirectories found in {current_path}")
+            return
+        
+        first_choice = self._get_user_directory_choice(first_level_dirs, current_path)
+        current_path = os.path.join(current_path, first_choice)
+        
+        # Second level selection
+        print("\n=== Select Filter System ===")
+        second_level_dirs = self._get_subdirectories(current_path)
+        if not second_level_dirs:
+            print(f"Error: No subdirectories found in {current_path}")
+            return
+        
+        second_choice = self._get_user_directory_choice(second_level_dirs, current_path)
+        final_path = os.path.join(current_path, second_choice)
+        
+        # Update the isodir parameter
+        self.params['isodir'] = final_path
+        print(f"\nSelected isochrone directory: {final_path}")
+        
+        # Update isomodel based on the first choice
+        model_mapping = {
+            'MIST': 'MIST',
+            'Parsec2.0': 'Parsec',
+            'Parsec_v1.2S': 'Parsec'
+        }
+        self.params['isomodel'] = model_mapping.get(first_choice, first_choice)
+
+    def _get_user_values(self, param_name, default_values):
+        """Get user choice between default values or custom input."""
+        print(f"\n=== Select {param_name} Values ===")
+        print(f"Default values: {default_values}")
+        print("\nOptions:")
+        print("1. Use default values")
+        print("2. Enter custom values")
+        
+        while True:
+            try:
+                choice = int(input("\nEnter your choice (1 or 2): "))
+                if choice == 1:
+                    return default_values
+                elif choice == 2:
+                    print("\nEnter space-separated values (e.g., '6.50 7.00 7.50' or '-0.40 0.00 0.20')")
+                    custom_values = input("Values: ").strip()
+                    # Convert space-separated input to comma-separated format
+                    values = [float(x) for x in custom_values.split()]
+                    return ', '.join(f"{v:.2f}" for v in values)
+                else:
+                    print("Invalid choice. Please enter 1 or 2.")
+            except ValueError:
+                print("Invalid input. Please enter a number.")
     
     def get_user_input(self, param_name, default_value=None, base_dir=None, options=None):
         while True:
@@ -49,21 +134,44 @@ class Param_Generator:
 
             return user_input
         
+    def _get_photsystem_choice(self):
+        """Get user's photsystem choice through numbered selection."""
+        print("\n=== Select Photometric System ===")
+        print("\nAvailable systems:")
+        for idx, system in enumerate(self.instrument_options, 1):
+            print(f"{idx}. {system}")
+        
+        while True:
+            try:
+                choice = input("\nEnter the number of your choice: ")
+                idx = int(choice) - 1
+                if 0 <= idx < len(self.instrument_options):
+                    return self.instrument_options[idx]
+                else:
+                    print("Invalid selection. Please try again.")
+            except ValueError:
+                print("Please enter a valid number.")
+        
     def generate_params(self, tza_mode=False):
+        # Get age values
+        self.params['genlikeliages'] = self._get_user_values('ages', self.default_ages)
+        
+        # Get metallicity values
+        self.params['genlikelizs'] = self._get_user_values('metallicities', self.default_zs)
+
         if tza_mode:
             self.params['perfectsampleav'] = True
             self.params['genlikeliavtildes'] = self.get_user_input('genlikeliavtildes')
 
-        max_age = float(input("Enter the maximum age to consider: "))
-        self.params['genlikeliages'] = self.filter_ages(max_age)
-
         self.params['datafile'] = self.get_user_input('datafile')
-        user_input_params = ['photsystem', 'distancemodulus', 'table_bluemax', 'table_redmax', 'mags']
-        for param in user_input_params:
-            if param == 'photsystem':
-                self.params[param] = self.get_user_input(param, options=self.instrument_options).upper()
-            else:
-                self.params[param] = self.get_user_input(param)
+
+        # Update photsystem selection
+        self.params['photsystem'] = self._get_photsystem_choice()
+        
+        # Get remaining user input parameters
+        remaining_params = ['distancemodulus', 'table_bluemax', 'table_redmax', 'mags']
+        for param in remaining_params:
+            self.params[param] = self.get_user_input(param)
 
         param_order = ['isodir', 'datafile', 'isomodel', 'photsystem', 'usegaiaplx', 'distancemodulus', 'genlikeliages', 'genlikelizs', 'genlikelimmin', 'genlikeliavtildes', 'table_bluemax', 'table_redmax', 'mags', 'unctype', 'perfectsampleav']
         with open('Params.dat', 'w') as file:
