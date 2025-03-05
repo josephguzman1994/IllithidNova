@@ -324,10 +324,18 @@ extdict = {
             'F439W': 1.345150, 'F450W': 1.271280, 'F555W': 1.006540, 'F606W': 0.864090,
             'F814W': 0.603520
         },
-        'UBVRI': {
-            'U': 1.550000, 'B': 1.310000, 'V': 1.000000, 'R': 0.750000, 'I': 0.480000
-        },
-        'Gaia': {'G': 0.836270, 'BP': 1.083370, 'RP': 0.634390}
+        'UBVRI-Gaia': {
+            'Bessell_U': 1.550000,
+            'Bessell_B': 1.310000,
+            'Bessell_V': 1.000000,
+            'Bessell_R': 0.750000,
+            'Bessell_I': 0.480000,
+            '2MASS_J': 0.290000,
+            '2MASS_H': 0.180000,
+            'Gaia_G_DR2Rev': 0.836270,
+            'Gaia_BP_DR2Rev': 1.083370,
+            'Gaia_RP_DR2Rev': 0.634390
+        }
     }
 }
 
@@ -356,7 +364,32 @@ isoindexdict = {
                     'F660N': 21, 'F775W': 22, 'F814W': 23, 'F850LP': 24, 'F892N': 25},
         'WFPC2': {'F439W': 7, 'F450W': 8, 'F555W': 9, 'F606W': 10, 'F814W': 11},
         'Stroemgren': {'b': 17, 'y': 18},
-        'UBVRI-Gaia': {'U': 9, 'B': 10, 'V': 11, 'R': 12, 'I': 13, 'J': 14, 'H': 15, 'G': 30, 'BP': 31, 'RP': 32}
+         'UBVRI-Gaia': {
+            'Bessell_U': 9,
+            'Bessell_B': 10,
+            'Bessell_V': 11,
+            'Bessell_R': 12,
+            'Bessell_I': 13,
+            '2MASS_J': 14,
+            '2MASS_H': 15,
+            '2MASS_Ks': 16,
+            'Kepler_Kp': 17,
+            'Kepler_D51': 18,
+            'Hipparcos_Hp': 19,
+            'Tycho_B': 20,
+            'Tycho_V': 21,
+            'Gaia_G_DR2Rev': 22,
+            'Gaia_BP_DR2Rev': 23,
+            'Gaia_RP_DR2Rev': 24,
+            'Gaia_G_MAW': 25,
+            'Gaia_BP_MAWb': 26,
+            'Gaia_BP_MAWf': 27,
+            'Gaia_RP_MAW': 28,
+            'TESS': 29,
+            'Gaia_G_EDR3': 30,
+            'Gaia_BP_EDR3': 31,
+            'Gaia_RP_EDR3': 32,
+        },
     }
 }
 
@@ -543,13 +576,19 @@ class UnpackIsoSet:
         isomodel = self.isomodel
         photsystem = self.photsystem
 
-        # Get the correct indices for the selected filters
-        blue_index = isoindexdict[isomodel][photsystem][blue.split('_')[-1]]
-        red_index = isoindexdict[isomodel][photsystem][red.split('_')[-1]]
-
-        # Get the extinction factors
-        fblue = extdict[isomodel][photsystem].get(blue.split('_')[-1], 1.0)
-        fred = extdict[isomodel][photsystem].get(red.split('_')[-1], 1.0)
+        # Special handling for UBVRI-Gaia system
+        if photsystem == 'UBVRI-Gaia':
+            # Use full filter names directly
+            blue_index = isoindexdict[isomodel][photsystem][blue]
+            red_index = isoindexdict[isomodel][photsystem][red]
+            fblue = extdict[isomodel][photsystem].get(blue, 1.0)
+            fred = extdict[isomodel][photsystem].get(red, 1.0)
+        else:
+            # Original behavior for other photometric systems
+            blue_index = isoindexdict[isomodel][photsystem][blue.split('_')[-1]]
+            red_index = isoindexdict[isomodel][photsystem][red.split('_')[-1]]
+            fblue = extdict[isomodel][photsystem].get(blue.split('_')[-1], 1.0)
+            fred = extdict[isomodel][photsystem].get(red.split('_')[-1], 1.0)
 
         icols = [2, 3, 6, 4]  # Mini, Mass, logL, logTe
         icols.extend([blue_index, red_index])
