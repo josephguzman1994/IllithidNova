@@ -7,7 +7,7 @@ import sys
 import time
 
 class Param_Generator:
-    def __init__(self, perfectsampleav=False, genlikeliavtildes=None):
+    def __init__(self, perfectsampleav=False, genlikeliavtildes=None, genlikelirots=None):
         self.default_ages = '6.50, 6.60, 6.70, 6.80, 6.90, 7.00, 7.10, 7.20, 7.30, 7.40, 7.50, 7.60, 7.80, 8.00, 8.20, 8.40, 8.60, 8.80, 9.00, 9.20, 9.40, 9.60, 9.80, 10.00'
         self.default_zs = '-0.40, -0.20, 0.00, 0.20'
         self.base_iso_path = '/home/joe/Research/Isochrones'
@@ -19,6 +19,7 @@ class Param_Generator:
             'genlikelizs': None,
             'genlikelimmin': 4.0,
             'genlikeliavtildes': genlikeliavtildes if genlikeliavtildes is not None else '0.0',
+            'genlikelirots': genlikelirots if genlikelirots is not None else '0.00',
             'unctype': 'sigma',
             'perfectsampleav': perfectsampleav
         }
@@ -78,6 +79,10 @@ class Param_Generator:
         # Update the isodir parameter
         self.params['isodir'] = final_path
         print(f"\nSelected isochrone directory: {final_path}")
+
+        # Ensure the path ends with a forward slash
+        if not final_path.endswith('/'):
+            final_path += '/'
         
         # Update isomodel based on the first choice
         model_mapping = {
@@ -152,7 +157,7 @@ class Param_Generator:
             except ValueError:
                 print("Please enter a valid number.")
         
-    def generate_params(self, tza_mode=False):
+    def generate_params(self, tza_mode=False, tzw_mode=False):
         # Get age values
         self.params['genlikeliages'] = self._get_user_values('ages', self.default_ages)
         
@@ -162,6 +167,13 @@ class Param_Generator:
         if tza_mode:
             self.params['perfectsampleav'] = True
             self.params['genlikeliavtildes'] = self.get_user_input('genlikeliavtildes')
+        
+        if tzw_mode:
+            # Get rotation values for tzw mode
+            self.params['genlikelirots'] = self._get_user_values('rotations', '0.00, 0.40')
+        else:
+            # For tz and tza modes, use default rotation value
+            self.params['genlikelirots'] = '0.00'
 
         self.params['datafile'] = self.get_user_input('datafile')
 
@@ -173,7 +185,7 @@ class Param_Generator:
         for param in remaining_params:
             self.params[param] = self.get_user_input(param)
 
-        param_order = ['isodir', 'datafile', 'isomodel', 'photsystem', 'usegaiaplx', 'distancemodulus', 'genlikeliages', 'genlikelizs', 'genlikelimmin', 'genlikeliavtildes', 'table_bluemax', 'table_redmax', 'mags', 'unctype', 'perfectsampleav']
+        param_order = ['isodir', 'datafile', 'isomodel', 'photsystem', 'usegaiaplx', 'distancemodulus', 'genlikeliages', 'genlikelizs', 'genlikelimmin', 'genlikeliavtildes', 'genlikelirots', 'table_bluemax', 'table_redmax', 'mags', 'unctype', 'perfectsampleav']
         with open('Params.dat', 'w') as file:
             for key in param_order:
                 file.write(f"{key} = {self.params[key]}\n")
@@ -221,6 +233,9 @@ class StellarProcess:
         if not all(isinstance(avtilde, float) for avtilde in self.base_params.get('genlikeliavtildes', [])):
             print("Error: All AvTilde values must be floats.")
             return False
+        if not all(isinstance(rot, float) for rot in self.base_params.get('genlikelirots', [])):
+            print("Error: All rotation values must be floats.")
+            return False
         return True
 
     def write_params(self, updated_params):
@@ -234,6 +249,7 @@ class StellarProcess:
                 'genlikeliages': "{:.2f}",
                 'genlikelizs': "{:.2f}",
                 'genlikeliavtildes': "{:.1f}",
+                'genlikelirots': "{:.2f}",
                 'genlikelimmin': "{:.1f}"
             }
 
@@ -250,8 +266,10 @@ class StellarProcess:
         except IOError as e:
             print(f"Failed to write to {self.params_file}: {e}")
 
-    def generate_combinations(self, ages, zs, avtildes):
-        return list(itertools.product(ages, zs, avtildes))
+    def generate_combinations(self, ages, zs, avtildes, rots=None):
+        if rots is None:
+            rots = [0.0]  # Default to single rotation value if not provided
+        return list(itertools.product(ages, zs, rots, avtildes))
         
     # Inform the user if the subprocess was successful or not
     def run_subprocess(self, command, debug=False):
@@ -267,9 +285,18 @@ class StellarProcess:
         try:
             # Read the 'perfectsampleav' parameter from Params.dat
             perfect_sample_av = self.read_params().get('perfectsampleav', 'False') == 'True'
+            
+            # Check if it's tzw mode by looking at rotation values
+            rots = self.read_params().get('genlikelirots', '0.0')
+            is_tzw_mode = len(rots.split(',')) > 1 or (len(rots.split(',')) == 1 and rots.strip() != '0.0')
 
-            # Determine the filename based on 'perfectsampleav'
-            self.initial_params_filename = "Params.dat.Initial_TZA_tables" if perfect_sample_av else "Params.dat.Initial_TZ_tables"
+            # Determine the filename based on 'perfectsampleav' and rotation mode
+            if is_tzw_mode:
+                self.initial_params_filename = "Params.dat.Initial_TZW_tables"
+            elif perfect_sample_av:
+                self.initial_params_filename = "Params.dat.Initial_TZA_tables"
+            else:
+                self.initial_params_filename = "Params.dat.Initial_TZ_tables"
 
             # Backup the Params.dat file before any processing
             shutil.copy(self.params_file, os.path.join(os.path.dirname(self.params_file), self.initial_params_filename))
@@ -277,6 +304,7 @@ class StellarProcess:
             ages = list(map(float, self.base_params['genlikeliages'].split(',')))
             zs = list(map(float, self.base_params['genlikelizs'].split(',')))
             avtildes = list(map(float, self.base_params['genlikeliavtildes'].split(',')))
+            rots = list(map(float, self.base_params['genlikelirots'].split(',')))
 
             # Split ages based on minimum mass criteria
             age_ranges = {
@@ -289,7 +317,7 @@ class StellarProcess:
             total_combinations = 0
             combinations_per_category = {}
             for min_mass, age_range in age_ranges.items():
-                combinations = self.generate_combinations(age_range, zs, avtildes)
+                combinations = self.generate_combinations(age_range, zs, avtildes, rots)
                 combinations_per_category[min_mass] = combinations
                 total_combinations += len(combinations)
 
@@ -313,18 +341,21 @@ class StellarProcess:
                     ages_set = set()
                     zs_set = set()
                     avtildes_set = set()
+                    rots_set = set()
 
-                    for age, z, avtilde in chunk:
+                    for age, z, rot, avtilde in chunk:
                         ages_set.add(age)
                         zs_set.add(z)
                         avtildes_set.add(avtilde)
-                        debug_info += f"Age: {age}, Z: {z}, Avtilde: {avtilde}, Min Mass: {min_mass}\n"
+                        rots_set.add(rot)
+                        debug_info += f"Age: {age}, Z: {z}, Rotation: {rot}, Avtilde: {avtilde}, Min Mass: {min_mass}\n"
 
                     # Prepare parameters for writing to params.dat
                     chunk_params = {
                         'genlikeliages': ', '.join(map(str, sorted(ages_set))),
                         'genlikelizs': ', '.join(map(str, sorted(zs_set))),
                         'genlikeliavtildes': ', '.join(map(str, sorted(avtildes_set))),
+                        'genlikelirots': ', '.join(map(str, sorted(rots_set))),
                         'genlikelimmin': str(min_mass)
                     }
 
@@ -360,11 +391,12 @@ class ProcessManager:
         all_combinations = self.stellar_process.generate_combinations(
             list(map(float, self.stellar_process.base_params['genlikeliages'].split(','))),
             list(map(float, self.stellar_process.base_params['genlikelizs'].split(','))),
-            list(map(float, self.stellar_process.base_params['genlikeliavtildes'].split(',')))
+            list(map(float, self.stellar_process.base_params['genlikeliavtildes'].split(','))),
+            list(map(float, self.stellar_process.base_params['genlikelirots'].split(',')))
         )
         remaining_combinations = [
             combo for combo in all_combinations
-            if f"LookUpTable_{combo[0]}_{combo[1]}_{combo[2]}.npz" not in completed_files
+            if f"LookUpTable_{combo[0]}_{combo[1]}_{combo[2]}_{combo[3]}.npz" not in completed_files
         ]
         return remaining_combinations
 
@@ -372,7 +404,8 @@ def main():
     parser = argparse.ArgumentParser(description="Process Stellar Ages")
     parser.add_argument("--tz_params", action="store_true", help="Generate Params.dat file using tz settings.")
     parser.add_argument("--tza_params", action="store_true", help="Generate Params.dat file using tza settings.")
-    parser.add_argument("--MakeTables", action="store_true", help="Process tz, or tza tables")
+    parser.add_argument("--tzw_params", action="store_true", help="Generate Params.dat file using tzw settings (includes rotation).")
+    parser.add_argument("--MakeTables", action="store_true", help="Process tz, tza, or tzw tables")
     parser.add_argument("--debug", action="store_true", help="Run in debug mode to print out processing steps without executing")
     parser.add_argument("--restart", action="store_true", help="Scan output files and suggest parameters to resume processing")
     args = parser.parse_args()
@@ -387,6 +420,9 @@ def main():
     elif args.tza_params:
         pg = Param_Generator(perfectsampleav=True)
         pg.generate_params(tza_mode=True)
+    elif args.tzw_params:
+        pg = Param_Generator(perfectsampleav=False, genlikelirots='0.0, 0.4')
+        pg.generate_params(tzw_mode=True)
 
     
     if args.restart:
@@ -395,10 +431,21 @@ def main():
         process_manager = ProcessManager(stellar_process)
         # Read the 'perfectsampleav' parameter from Params.dat
         perfect_sample_av = stellar_process.read_params().get('perfectsampleav', 'False') == 'True'
+        
+        # Check if it's tzw mode by looking at rotation values
+        rots = stellar_process.read_params().get('genlikelirots', '0.0')
+        is_tzw_mode = len(rots.split(',')) > 1 or (len(rots.split(',')) == 1 and rots.strip() != '0.0')
 
-        # Determine the filename based on 'perfectsampleav' in Params.dat
-        initial_params_filename = "Params.dat.Initial_TZA_tables" if perfect_sample_av else "Params.dat.Initial_TZ_tables"
-        output_filename = "remaining_av_combinations.txt" if perfect_sample_av else "remaining_tz_combinations.txt"
+        # Determine the filename based on 'perfectsampleav' and rotation mode
+        if is_tzw_mode:
+            initial_params_filename = "Params.dat.Initial_TZW_tables"
+            output_filename = "remaining_tzw_combinations.txt"
+        elif perfect_sample_av:
+            initial_params_filename = "Params.dat.Initial_TZA_tables"
+            output_filename = "remaining_tza_combinations.txt"
+        else:
+            initial_params_filename = "Params.dat.Initial_TZ_tables"
+            output_filename = "remaining_tz_combinations.txt"
 
         # Set the initial parameters file path
         initial_params_file = os.path.join(output_dir, initial_params_filename)
@@ -409,7 +456,8 @@ def main():
         all_combinations = stellar_process.generate_combinations(
             list(map(float, initial_params['genlikeliages'].split(','))),
             list(map(float, initial_params['genlikelizs'].split(','))),
-            list(map(float, initial_params['genlikeliavtildes'].split(',')))
+            list(map(float, initial_params['genlikeliavtildes'].split(','))),
+            list(map(float, initial_params['genlikelirots'].split(',')))
         )
 
         # Define age ranges based on mmin criteria
@@ -427,22 +475,25 @@ def main():
         for mmin, ages in age_ranges.items():
             for age in ages:
                 for z in map(float, initial_params['genlikelizs'].split(',')):
-                    for av in map(float, initial_params['genlikeliavtildes'].split(',')):
-                        filename = f"LookUpTable_{age}_{z}_{av}.npz"
-                        if filename not in completed_files:
-                            missing_combinations_by_mmin[mmin].append((age, z, av))
+                    for rot in map(float, initial_params['genlikelirots'].split(',')):
+                        for av in map(float, initial_params['genlikeliavtildes'].split(',')):
+                            filename = f"LookUpTable_{age}_{z}_{rot}_{av}.npz"
+                            if filename not in completed_files:
+                                missing_combinations_by_mmin[mmin].append((age, z, rot, av))
 
         # Write remaining combinations to file grouped by mmin
         with open(output_filename, 'w') as file:
             file.write("Comparing the output files versus the initial parameters found, we recommend you set these parameters in Params.dat to pick up where you left off:\n\n")
             for mmin, combinations in missing_combinations_by_mmin.items():
-                unique_ages = sorted(set(age for age, _, _ in combinations))
-                unique_zs = sorted(set(z for _, z, _ in combinations))
-                unique_avtildes = sorted(set(av for _, _, av in combinations))
+                unique_ages = sorted(set(age for age, _, _, _ in combinations))
+                unique_zs = sorted(set(z for _, z, _, _ in combinations))
+                unique_rots = sorted(set(rot for _, _, rot, _ in combinations))
+                unique_avtildes = sorted(set(av for _, _, _, av in combinations))
 
                 file.write(f"For genlikleimmin = {mmin}, use these parameters in Params.dat\n")
                 file.write(f"genlikeliages = {unique_ages}\n")
                 file.write(f"genlikelizs = {unique_zs}\n")
+                file.write(f"genlikelirots = {[f'{rot:.2f}' for rot in unique_rots]}\n")
                 file.write(f"genlikeliavtildes = {unique_avtildes}\n\n")
 
         print(f"To resume with remaining combinations, please see '{output_filename}'")
