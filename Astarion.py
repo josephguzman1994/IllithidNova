@@ -10,6 +10,7 @@ class Param_Generator:
     def __init__(self, perfectsampleav=False, genlikeliavtildes=None, genlikelirots=None):
         self.default_ages = '6.50, 6.60, 6.70, 6.80, 6.90, 7.00, 7.10, 7.20, 7.30, 7.40, 7.50, 7.60, 7.80, 8.00, 8.20, 8.40, 8.60, 8.80, 9.00, 9.20, 9.40, 9.60, 9.80, 10.00'
         self.default_zs = '-0.40, -0.20, 0.00, 0.20'
+        self.default_avtildes = '0.0'  # Default Av tilde values
         self.base_iso_path = '/home/joe/Research/Isochrones'
         self.params = {
             'isodir': None,
@@ -18,8 +19,8 @@ class Param_Generator:
             'genlikeliages': None,
             'genlikelizs': None,
             'genlikelimmin': 4.0,
-            'genlikeliavtildes': genlikeliavtildes if genlikeliavtildes is not None else '0.0',
-            'genlikelirots': genlikelirots if genlikelirots is not None else '0.00',
+            'genlikeliavtildes': genlikeliavtildes if genlikeliavtildes is not None else self.default_avtildes,
+            'genlikelirots': genlikelirots if genlikelirots is not None else '0.0',
             'unctype': 'sigma',
             'perfectsampleav': perfectsampleav
         }
@@ -170,7 +171,32 @@ class Param_Generator:
         
         if tzw_mode:
             # Get rotation values for tzw mode
-            self.params['genlikelirots'] = self._get_user_values('rotations', '0.00, 0.40')
+            self.params['genlikelirots'] = self._get_user_values('rotations', '0.0, 0.4')
+            
+            # Allow user to specify Av tilde values for tzw mode
+            print("\n=== TZW Mode: Av Tilde Configuration ===")
+            print("In TZW mode, you can specify custom Av tilde values.")
+            self.params['genlikeliavtildes'] = self._get_user_values('Av tilde values', self.default_avtildes)
+            
+            # Allow user to specify perfectsampleav for tzw mode
+            print("\n=== TZW Mode: Perfect Sample AV Configuration ===")
+            print("Options:")
+            print("1. perfectsampleav = False (default)")
+            print("2. perfectsampleav = True")
+            
+            while True:
+                try:
+                    choice = int(input("\nEnter your choice (1 or 2): "))
+                    if choice == 1:
+                        self.params['perfectsampleav'] = False
+                        break
+                    elif choice == 2:
+                        self.params['perfectsampleav'] = True
+                        break
+                    else:
+                        print("Invalid choice. Please enter 1 or 2.")
+                except ValueError:
+                    print("Invalid input. Please enter a number.")
         else:
             # For tz and tza modes, use default rotation value
             self.params['genlikelirots'] = '0.00'
@@ -248,8 +274,8 @@ class StellarProcess:
             precision_rules = {
                 'genlikeliages': "{:.2f}",
                 'genlikelizs': "{:.2f}",
-                'genlikeliavtildes': "{:.1f}",
-                'genlikelirots': "{:.2f}",
+                'genlikeliavtildes': "{:.2f}",
+                'genlikelirots': "{:.1f}",
                 'genlikelimmin': "{:.1f}"
             }
 
@@ -334,9 +360,29 @@ class StellarProcess:
             # Process each category with calculated chunks
             for min_mass, combinations in combinations_per_category.items():
                 num_chunks = chunks_per_category[min_mass]
-                chunks = [combinations[i::num_chunks] for i in range(num_chunks)]
+                
+                # Improved chunking logic to avoid duplicates
+                if len(combinations) <= num_chunks:
+                    # If we have fewer combinations than chunks, just use one chunk per combination
+                    chunks = [[combo] for combo in combinations]
+                else:
+                    # Use proper chunking to distribute combinations evenly
+                    chunk_size = len(combinations) // num_chunks
+                    remainder = len(combinations) % num_chunks
+                    chunks = []
+                    start_idx = 0
+                    
+                    for i in range(num_chunks):
+                        # Add one extra item to early chunks if there's a remainder
+                        current_chunk_size = chunk_size + (1 if i < remainder else 0)
+                        end_idx = start_idx + current_chunk_size
+                        chunks.append(combinations[start_idx:end_idx])
+                        start_idx = end_idx
 
                 for index, chunk in enumerate(chunks):
+                    if not chunk:  # Skip empty chunks
+                        continue
+                        
                     debug_info = f"Chunk {index + 1} for Min Mass {min_mass}:\n"
                     ages_set = set()
                     zs_set = set()
@@ -401,10 +447,22 @@ class ProcessManager:
         return remaining_combinations
 
 def main():
-    parser = argparse.ArgumentParser(description="Process Stellar Ages")
+    parser = argparse.ArgumentParser(description="Process Stellar Ages", 
+                                   formatter_class=argparse.RawDescriptionHelpFormatter,
+                                   epilog="""
+Examples:
+  # Generate TZW parameters with interactive prompts
+  python3 Astarion.py --tzw_params
+  
+  # Process tables using existing Params.dat
+  python3 Astarion.py --MakeTables
+  
+  # Debug mode to see what would be processed
+  python3 Astarion.py --MakeTables --debug
+""")
     parser.add_argument("--tz_params", action="store_true", help="Generate Params.dat file using tz settings.")
     parser.add_argument("--tza_params", action="store_true", help="Generate Params.dat file using tza settings.")
-    parser.add_argument("--tzw_params", action="store_true", help="Generate Params.dat file using tzw settings (includes rotation).")
+    parser.add_argument("--tzw_params", action="store_true", help="Generate Params.dat file using tzw settings (includes rotation, Av tilde, and perfectsampleav options).")
     parser.add_argument("--MakeTables", action="store_true", help="Process tz, tza, or tzw tables")
     parser.add_argument("--debug", action="store_true", help="Run in debug mode to print out processing steps without executing")
     parser.add_argument("--restart", action="store_true", help="Scan output files and suggest parameters to resume processing")
