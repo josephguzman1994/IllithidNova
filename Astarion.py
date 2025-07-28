@@ -314,7 +314,15 @@ class StellarProcess:
             
             # Check if it's tzw mode by looking at rotation values
             rots = self.read_params().get('genlikelirots', '0.0')
-            is_tzw_mode = len(rots.split(',')) > 1 or (len(rots.split(',')) == 1 and rots.strip() != '0.0')
+            rots_list = [r.strip() for r in rots.split(',')]
+            is_tzw_mode = len(rots_list) > 1 or (len(rots_list) == 1 and rots_list[0] != '0.0')
+            
+            if self.debug:
+                print(f"TZW Mode Detection:")
+                print(f"  Rotation values: {rots}")
+                print(f"  Rotation list: {rots_list}")
+                print(f"  Is TZW mode: {is_tzw_mode}")
+                print(f"  Perfect sample AV: {perfect_sample_av}")
 
             # Determine the filename based on 'perfectsampleav' and rotation mode
             if is_tzw_mode:
@@ -346,6 +354,13 @@ class StellarProcess:
                 combinations = self.generate_combinations(age_range, zs, avtildes, rots)
                 combinations_per_category[min_mass] = combinations
                 total_combinations += len(combinations)
+                
+            if self.debug:
+                print(f"\nTotal combinations to process: {total_combinations}")
+                for min_mass, combinations in combinations_per_category.items():
+                    print(f"  Min mass {min_mass}: {len(combinations)} combinations")
+                    if len(combinations) > 0:
+                        print(f"    Sample combinations: {combinations[:3]}")
 
             # Aim for a set amount of terminals
             desired_terminals = 4
@@ -397,15 +412,31 @@ class StellarProcess:
                         debug_info += f"Age: {age}, Z: {z}, Rotation: {rot}, Avtilde: {avtilde}, Min Mass: {min_mass}\n"
 
                     # Prepare parameters for writing to params.dat
-                    chunk_params = {
-                        'genlikeliages': ', '.join(map(str, sorted(ages_set))),
-                        'genlikelizs': ', '.join(map(str, sorted(zs_set))),
-                        'genlikeliavtildes': ', '.join(map(str, sorted(avtildes_set))),
-                        'genlikelirots': ', '.join(map(str, sorted(rots_set))),
-                        'genlikelimmin': str(min_mass)
-                    }
+                    # For TZW mode, we need to ensure all rotation values are included in each chunk
+                    # since the StellarAges.py script expects all rotation values to be present
+                    if is_tzw_mode:
+                        chunk_params = {
+                            'genlikeliages': ', '.join(map(str, sorted(ages_set))),
+                            'genlikelizs': ', '.join(map(str, sorted(zs_set))),
+                            'genlikeliavtildes': ', '.join(map(str, sorted(avtildes_set))),
+                            'genlikelirots': ', '.join(map(str, sorted(rots))),  # Use all rotation values
+                            'genlikelimmin': str(min_mass)
+                        }
+                    else:
+                        chunk_params = {
+                            'genlikeliages': ', '.join(map(str, sorted(ages_set))),
+                            'genlikelizs': ', '.join(map(str, sorted(zs_set))),
+                            'genlikeliavtildes': ', '.join(map(str, sorted(avtildes_set))),
+                            'genlikelirots': ', '.join(map(str, sorted(rots_set))),
+                            'genlikelimmin': str(min_mass)
+                        }
 
                     # Write the collected parameters for the entire chunk to params.dat
+                    if self.debug:
+                        print(f"\nChunk {index + 1} for Min Mass {min_mass} parameters:")
+                        for key, value in chunk_params.items():
+                            print(f"  {key} = {value}")
+                    
                     self.write_params(chunk_params)
 
                     if self.debug:
