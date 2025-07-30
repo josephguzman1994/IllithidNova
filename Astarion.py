@@ -340,59 +340,185 @@ class StellarProcess:
             avtildes = list(map(float, self.base_params['genlikeliavtildes'].split(',')))
             rots = list(map(float, self.base_params['genlikelirots'].split(',')))
 
-            # Split ages based on minimum mass criteria
+            # Split ages based on minimum mass criteria (needed for both TZW and non-TZW modes)
             age_ranges = {
                 4.0: [age for age in ages if age <= 7.80],
                 2.0: [age for age in ages if 7.80 < age <= 8.60],
                 0.5: [age for age in ages if age > 8.60]
             }
 
-            # Calculate total combinations and determine chunks per category
-            total_combinations = 0
-            combinations_per_category = {}
-            for min_mass, age_range in age_ranges.items():
-                combinations = self.generate_combinations(age_range, zs, avtildes, rots)
-                combinations_per_category[min_mass] = combinations
-                total_combinations += len(combinations)
+            # For TZW mode, we need a different chunking strategy that preserves all rotation values
+            # in each chunk while distributing the age/metallicity combinations
+            if is_tzw_mode:
+                # Generate all combinations first
+                all_combinations = self.generate_combinations(ages, zs, avtildes, rots)
+                total_combinations = len(all_combinations)
                 
-            if self.debug:
-                print(f"\nTotal combinations to process: {total_combinations}")
-                for min_mass, combinations in combinations_per_category.items():
-                    print(f"  Min mass {min_mass}: {len(combinations)} combinations")
-                    if len(combinations) > 0:
-                        print(f"    Sample combinations: {combinations[:3]}")
-
-            # Aim for a set amount of terminals
-            desired_terminals = 4
-            chunks_per_category = {}
-            for min_mass, combinations in combinations_per_category.items():
-                proportion = len(combinations) / total_combinations
-                chunks_per_category[min_mass] = max(1, round(proportion * desired_terminals))
-
-            terminal_count = 0
-            max_terminals = 10  # Set a safe limit for open terminals
-
-            # Process each category with calculated chunks
-            for min_mass, combinations in combinations_per_category.items():
-                num_chunks = chunks_per_category[min_mass]
+                if self.debug:
+                    print(f"\nTZW Mode: Total combinations to process: {total_combinations}")
+                    print(f"  Sample combinations: {all_combinations[:5]}")
                 
-                # Improved chunking logic to avoid duplicates
-                if len(combinations) <= num_chunks:
-                    # If we have fewer combinations than chunks, just use one chunk per combination
-                    chunks = [[combo] for combo in combinations]
-                else:
-                    # Use proper chunking to distribute combinations evenly
-                    chunk_size = len(combinations) // num_chunks
-                    remainder = len(combinations) % num_chunks
+                # Split combinations by minimum mass criteria but preserve rotation values
+                combinations_by_mmin = {}
+                for min_mass, age_range in age_ranges.items():
+                    # Filter combinations to only include those with ages in the current range
+                    filtered_combinations = [combo for combo in all_combinations if combo[0] in age_range]
+                    combinations_by_mmin[min_mass] = filtered_combinations
+                    
+                    if self.debug:
+                        print(f"  Min mass {min_mass}: {len(filtered_combinations)} combinations")
+                        if len(filtered_combinations) > 0:
+                            print(f"    Sample combinations: {filtered_combinations[:3]}")
+                
+                # Calculate total chunks needed across all minimum mass categories
+                total_combinations_by_mmin = {mmin: len(combs) for mmin, combs in combinations_by_mmin.items()}
+                total_combinations_sum = sum(total_combinations_by_mmin.values())
+                
+                # Distribute terminals across minimum mass categories based on their proportion
+                max_terminals = 6  # User's limit
+                terminal_count = 0
+                
+                if self.debug:
+                    print(f"\nTerminal distribution strategy:")
+                    print(f"  Total combinations: {total_combinations_sum}")
+                    print(f"  Max terminals: {max_terminals}")
+                
+                # Process each minimum mass category
+                for min_mass, combinations in combinations_by_mmin.items():
+                    if not combinations:
+                        continue
+                    
+                    # Calculate proportional terminals for this category
+                    proportion = len(combinations) / total_combinations_sum
+                    num_chunks = max(1, min(len(combinations), round(proportion * max_terminals)))
+                    
+                    if self.debug:
+                        print(f"  Min mass {min_mass}: {len(combinations)} combinations -> {num_chunks} chunks")
+                    
+                    # Create chunks that preserve rotation values
+                    # Group combinations by rotation value first, then distribute age/metallicity combinations
+                    rotations = list(set(combo[2] for combo in combinations))
+                    ages_metallicities = list(set((combo[0], combo[1]) for combo in combinations))
+                    
+                    # Distribute age/metallicity combinations across chunks
+                    chunk_size = len(ages_metallicities) // num_chunks
+                    remainder = len(ages_metallicities) % num_chunks
+                    
                     chunks = []
                     start_idx = 0
                     
                     for i in range(num_chunks):
-                        # Add one extra item to early chunks if there's a remainder
                         current_chunk_size = chunk_size + (1 if i < remainder else 0)
                         end_idx = start_idx + current_chunk_size
-                        chunks.append(combinations[start_idx:end_idx])
+                        chunk_ages_metallicities = ages_metallicities[start_idx:end_idx]
+                        
+                        # Create combinations for this chunk with all rotation values
+                        chunk_combinations = []
+                        for age, z in chunk_ages_metallicities:
+                            for rot in rotations:
+                                for av in avtildes:
+                                    chunk_combinations.append((age, z, rot, av))
+                        
+                        chunks.append(chunk_combinations)
                         start_idx = end_idx
+                    
+                    # Process the chunks for this minimum mass category
+                    for index, chunk in enumerate(chunks):
+                        if not chunk:  # Skip empty chunks
+                            continue
+                            
+                        debug_info = f"Chunk {index + 1} for Min Mass {min_mass}:\n"
+                        ages_set = set()
+                        zs_set = set()
+                        avtildes_set = set()
+                        rots_set = set()
+
+                        for age, z, rot, avtilde in chunk:
+                            ages_set.add(age)
+                            zs_set.add(z)
+                            avtildes_set.add(avtilde)
+                            rots_set.add(rot)
+                            debug_info += f"Age: {age}, Z: {z}, Rotation: {rot}, Avtilde: {avtilde}, Min Mass: {min_mass}\n"
+
+                        # Prepare parameters for writing to params.dat
+                        chunk_params = {
+                            'genlikeliages': ', '.join(map(str, sorted(ages_set))),
+                            'genlikelizs': ', '.join(map(str, sorted(zs_set))),
+                            'genlikeliavtildes': ', '.join(map(str, sorted(avtildes_set))),
+                            'genlikelirots': ', '.join(map(str, sorted(rots_set))),
+                            'genlikelimmin': str(min_mass)
+                        }
+
+                        # Write the collected parameters for the entire chunk to params.dat
+                        if self.debug:
+                            print(f"\nChunk {index + 1} for Min Mass {min_mass} parameters:")
+                            for key, value in chunk_params.items():
+                                print(f"  {key} = {value}")
+                        
+                        self.write_params(chunk_params)
+
+                        if self.debug:
+                            self.run_subprocess(debug_info, debug=True)
+                        else:
+                            command = f"python3 /home/joe/Research/StellarAges/StellarAges.py --Generatelikelihood"
+                            self.run_subprocess(command)
+                            time.sleep(6)  # Time delay to allow the command to start processing before writing to the next file.
+                            terminal_count += 1
+
+                        if terminal_count >= max_terminals:
+                            print(f"\nReached maximum terminal limit ({max_terminals}). Waiting for user input to continue...")
+                            input("Press Enter to continue with the next set of terminals...")
+                            terminal_count = 0  # Reset counter after user input
+                        print("Successfully executing tables in new terminal")
+            else:
+                # Original logic for non-TZW modes
+
+                # Calculate total combinations and determine chunks per category
+                total_combinations = 0
+                combinations_per_category = {}
+                for min_mass, age_range in age_ranges.items():
+                    combinations = self.generate_combinations(age_range, zs, avtildes, rots)
+                    combinations_per_category[min_mass] = combinations
+                    total_combinations += len(combinations)
+                    
+                if self.debug:
+                    print(f"\nTotal combinations to process: {total_combinations}")
+                    for min_mass, combinations in combinations_per_category.items():
+                        print(f"  Min mass {min_mass}: {len(combinations)} combinations")
+                        if len(combinations) > 0:
+                            print(f"    Sample combinations: {combinations[:3]}")
+
+                # Aim for a set amount of terminals
+                desired_terminals = 4
+                chunks_per_category = {}
+                for min_mass, combinations in combinations_per_category.items():
+                    proportion = len(combinations) / total_combinations
+                    chunks_per_category[min_mass] = max(1, round(proportion * desired_terminals))
+
+                terminal_count = 0
+                max_terminals = 6  # User's limit for open terminals
+
+                # Process each category with calculated chunks
+                for min_mass, combinations in combinations_per_category.items():
+                    num_chunks = chunks_per_category[min_mass]
+                    
+                    # Improved chunking logic to avoid duplicates
+                    if len(combinations) <= num_chunks:
+                        # If we have fewer combinations than chunks, just use one chunk per combination
+                        chunks = [[combo] for combo in combinations]
+                    else:
+                        # Use proper chunking to distribute combinations evenly
+                        chunk_size = len(combinations) // num_chunks
+                        remainder = len(combinations) % num_chunks
+                        chunks = []
+                        start_idx = 0
+                        
+                        for i in range(num_chunks):
+                            # Add one extra item to early chunks if there's a remainder
+                            current_chunk_size = chunk_size + (1 if i < remainder else 0)
+                            end_idx = start_idx + current_chunk_size
+                            chunks.append(combinations[start_idx:end_idx])
+                            start_idx = end_idx
 
                 for index, chunk in enumerate(chunks):
                     if not chunk:  # Skip empty chunks
@@ -419,7 +545,7 @@ class StellarProcess:
                             'genlikeliages': ', '.join(map(str, sorted(ages_set))),
                             'genlikelizs': ', '.join(map(str, sorted(zs_set))),
                             'genlikeliavtildes': ', '.join(map(str, sorted(avtildes_set))),
-                            'genlikelirots': ', '.join(map(str, sorted(rots))),  # Use all rotation values
+                            'genlikelirots': ', '.join(map(str, sorted(rots_set))),  # Use only rotation values in this chunk
                             'genlikelimmin': str(min_mass)
                         }
                     else:
@@ -448,7 +574,9 @@ class StellarProcess:
                         terminal_count += 1
 
                     if terminal_count >= max_terminals:
+                        print(f"\nReached maximum terminal limit ({max_terminals}). Waiting for user input to continue...")
                         input("Press Enter to continue with the next set of terminals...")
+                        terminal_count = 0  # Reset counter after user input
                     print("Successfully executing tables in new terminal")
         except Exception as e:
             print(f"An error occurred in process_tables: {e}")
